@@ -1,0 +1,71 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if product %}
+        {{ product.name }} - {{ block.super }}
+    {% else %}
+        Товар не найден - {{ block.super }}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <!-- Обработка случая, когда товар не найден -->
+    {% if error_message %}
+        <div class="error-container">
+            <h1 class="error-title">Ошибка 404</h1>
+            <p class="error-message">{{ error_message }}</p>
+            {% if product_id %}
+                <p class="error-details">Товар с ID {{ product_id }} не найден в базе данных.</p>
+            {% endif %}
+            <a href="{% url 'shop:product_list' %}" class="btn btn-primary">
+                Вернуться к каталогу товаров
+            </a>
+        </div>
+    {% elif product %}
+        <!-- Отображение детальной информации о товаре -->
+        <div class="product-detail">
+            <!-- Кнопка возврата к списку товаров -->
+            <a href="{% url 'shop:product_list' %}" class="back-link">← Вернуться к каталогу</a>
+            
+            <div class="product-detail-content">
+                <!-- Изображение товара -->
+                <div class="product-detail-image">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-detail-img">
+                    {% else %}
+                        <div class="product-placeholder-large">
+                            <span>Изображение отсутствует</span>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Детальная информация о товаре -->
+                <div class="product-detail-info">
+                    <h1 class="product-detail-name">{{ product.name }}</h1>
+                    
+                    <!-- Цена товара с форматированием -->
+                    <div class="product-detail-price">
+                        <span class="price-label">Цена:</span>
+                        <span class="price-value">{{ product.price|floatformat:2 }} ₽</span>
+                    </div>
+                    
+                    <!-- Описание товара -->
+                    <div class="product-detail-description">
+                        <h2>Описание товара</h2>
+                        <p>{{ product.description|linebreaks }}</p>
+                    </div>
+                    
+                    <!-- Дата создания товара -->
+                    <div class="product-detail-meta">
+                        <p>
+                            <strong>Дата добавления:</strong> 
+                            {{ product.created_at|date:"d.m.Y в H:i" }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+

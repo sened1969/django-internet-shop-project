@@ -1,0 +1,66 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Каталог товаров - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <h1 class="page-title">Каталог товаров</h1>
+    
+    <!-- Проверка наличия товаров -->
+    {% if products %}
+        <!-- Отображение количества товаров с использованием фильтра length -->
+        <p class="products-count">Всего товаров: {{ products|length }}</p>
+        
+        <!-- Сетка товаров -->
+        <div class="products-grid">
+            {% for product in products %}
+                <div class="product-card">
+                    <!-- Изображение товара -->
+                    <div class="product-image">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-img">
+                        {% else %}
+                            <!-- Заглушка, если изображение отсутствует -->
+                            <div class="product-placeholder">
+                                <span>Нет изображения</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Информация о товаре -->
+                    <div class="product-info">
+                        <h2 class="product-name">
+                            <a href="{% url 'shop:product_detail' product.id %}">{{ product.name }}</a>
+                        </h2>
+                        
+                        <!-- Цена товара с форматированием (2 знака после запятой) -->
+                        <p class="product-price">
+                            Цена: <strong>{{ product.price|floatformat:2 }} ₽</strong>
+                        </p>
+                        
+                        <!-- Описание товара (обрезано до 100 символов) -->
+                        <p class="product-description">
+                            {{ product.description|truncatechars:100 }}
+                        </p>
+                        
+                        <!-- Дата создания товара с форматированием -->
+                        <p class="product-date">
+                            Добавлен: {{ product.created_at|date:"d.m.Y H:i" }}
+                        </p>
+                        
+                        <!-- Кнопка для перехода к детальной информации -->
+                        <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary">
+                            Подробнее
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Сообщение, если товаров нет -->
+        <div class="empty-state">
+            <p class="empty-message">Товары отсутствуют. Каталог пуст.</p>
+        </div>
+    {% endif %}
+{% endblock %}
+

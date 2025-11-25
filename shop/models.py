@@ -1,12 +1,58 @@
 """
 Модели для интернет-магазина.
 
-Модели Product и Message для работы с товарами и сообщениями пользователей.
+Модели для работы с товарами, категориями, заказами, отзывами и корзиной покупок.
 """
 from django.db import models
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.contrib.auth.models import User
 from decimal import Decimal
+
+
+class Category(models.Model):
+    """
+    Модель категории товаров.
+    
+    Поддерживает вложенные категории через self-referencing ForeignKey.
+    
+    Атрибуты:
+        name (CharField): Название категории
+        description (TextField): Описание категории (необязательное)
+        parent (ForeignKey): Родительская категория для создания вложенных категорий
+    """
+    name = models.CharField(
+        max_length=100,
+        verbose_name='Название категории',
+        help_text='Введите название категории'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name='Описание категории',
+        help_text='Описание категории (необязательно)'
+    )
+    
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='Родительская категория',
+        help_text='Выберите родительскую категорию для создания вложенной категории'
+    )
+    
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ['name']
+    
+    def __str__(self):
+        """Возвращает строковое представление категории."""
+        if self.parent:
+            return f'{self.parent.name} > {self.name}'
+        return self.name
 
 
 class Product(models.Model):
@@ -17,7 +63,9 @@ class Product(models.Model):
         name (CharField): Название товара
         description (TextField): Подробное описание товара
         price (DecimalField): Цена товара с валидацией минимального значения
+        stock (IntegerField): Количество товара на складе
         image (ImageField): Изображение товара (опционально)
+        category (ForeignKey): Связь с категорией товара
         created_at (DateTimeField): Дата и время создания записи
     """
     name = models.CharField(
@@ -39,12 +87,29 @@ class Product(models.Model):
         help_text='Цена товара в рублях'
     )
     
+    stock = models.IntegerField(
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Количество на складе',
+        help_text='Количество товара на складе'
+    )
+    
     image = models.ImageField(
         upload_to='products/',
         blank=True,
         null=True,
         verbose_name='Изображение товара',
         help_text='Загрузите изображение товара'
+    )
+    
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='Категория товара',
+        help_text='Выберите категорию товара'
     )
     
     created_at = models.DateTimeField(
@@ -57,6 +122,8 @@ class Product(models.Model):
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
         ordering = ['-created_at']  # Сортировка по дате создания (новые сначала)
+        db_table = 'shop_products'  # Имя таблицы в базе данных
+        unique_together = ['name', 'category']  # Уникальность названия в рамках категории
     
     def __str__(self):
         """Возвращает строковое представление товара."""
@@ -95,9 +162,8 @@ class Message(models.Model):
     )
     
     message = models.TextField(
-        max_length=500,
         verbose_name='Сообщение',
-        help_text='Текст сообщения (максимум 500 символов)'
+        help_text='Текст сообщения'
     )
     
     created_at = models.DateTimeField(
@@ -114,4 +180,242 @@ class Message(models.Model):
     def __str__(self):
         """Возвращает строковое представление сообщения."""
         return f'Сообщение от {self.name} ({self.email})'
+
+
+class Order(models.Model):
+    """
+    Модель заказа в интернет-магазине.
+    
+    Атрибуты:
+        user (ForeignKey): Пользователь, оформивший заказ
+        created_at (DateTimeField): Дата и время создания заказа
+        status (CharField): Статус заказа (в обработке, доставляется, доставлено)
+    """
+    STATUS_CHOICES = [
+        ('processing', 'В обработке'),
+        ('shipping', 'Доставляется'),
+        ('delivered', 'Доставлено'),
+    ]
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='orders',
+        verbose_name='Пользователь',
+        help_text='Пользователь, оформивший заказ'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания заказа',
+        help_text='Дата и время оформления заказа'
+    )
+    
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='processing',
+        verbose_name='Статус заказа',
+        help_text='Текущий статус заказа'
+    )
+    
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        """Возвращает строковое представление заказа."""
+        return f'Заказ #{self.id} от {self.user.username} ({self.get_status_display()})'
+    
+    def total_price(self):
+        """
+        Вычисляет общую стоимость заказа.
+        
+        Суммирует стоимость всех товаров в заказе с учётом их количества.
+        
+        Returns:
+            Decimal: Общая стоимость заказа
+        """
+        total = Decimal('0.00')
+        for item in self.items.all():
+            total += item.product.price * item.quantity
+        return total
+    
+    total_price.short_description = 'Общая стоимость'
+
+
+class OrderItem(models.Model):
+    """
+    Модель товара в заказе.
+    
+    Атрибуты:
+        order (ForeignKey): Заказ, к которому относится товар
+        product (ForeignKey): Товар
+        quantity (IntegerField): Количество товара в заказе
+    """
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name='Заказ',
+        help_text='Заказ, к которому относится товар'
+    )
+    
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='order_items',
+        verbose_name='Товар',
+        help_text='Товар в заказе'
+    )
+    
+    quantity = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        verbose_name='Количество',
+        help_text='Количество товара в заказе'
+    )
+    
+    class Meta:
+        verbose_name = 'Товар в заказе'
+        verbose_name_plural = 'Товары в заказах'
+    
+    def __str__(self):
+        """Возвращает строковое представление товара в заказе."""
+        return f'{self.product.name} x{self.quantity} в заказе #{self.order.id}'
+
+
+class Review(models.Model):
+    """
+    Модель отзыва о товаре.
+    
+    Атрибуты:
+        product (ForeignKey): Товар, на который оставлен отзыв
+        user (ForeignKey): Пользователь, оставивший отзыв
+        rating (IntegerField): Оценка товара (от 1 до 5)
+        text (TextField): Текст отзыва
+        created_at (DateTimeField): Дата и время создания отзыва
+    """
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Товар',
+        help_text='Товар, на который оставлен отзыв'
+    )
+    
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Пользователь',
+        help_text='Пользователь, оставивший отзыв'
+    )
+    
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        verbose_name='Оценка',
+        help_text='Оценка товара от 1 до 5'
+    )
+    
+    text = models.TextField(
+        verbose_name='Текст отзыва',
+        help_text='Текст отзыва о товаре'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания',
+        help_text='Дата и время создания отзыва'
+    )
+    
+    class Meta:
+        verbose_name = 'Отзыв'
+        verbose_name_plural = 'Отзывы'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        """Возвращает строковое представление отзыва."""
+        return f'Отзыв от {self.user.username} на {self.product.name} ({self.rating}/5)'
+
+
+class Cart(models.Model):
+    """
+    Модель корзины покупок пользователя.
+    
+    Атрибуты:
+        user (ForeignKey): Пользователь, владелец корзины
+        created_at (DateTimeField): Дата и время создания корзины
+        updated_at (DateTimeField): Дата и время последнего обновления корзины
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='cart',
+        verbose_name='Пользователь',
+        help_text='Владелец корзины'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания',
+        help_text='Дата и время создания корзины'
+    )
+    
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='Дата обновления',
+        help_text='Дата и время последнего обновления корзины'
+    )
+    
+    class Meta:
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзины'
+    
+    def __str__(self):
+        """Возвращает строковое представление корзины."""
+        return f'Корзина пользователя {self.user.username}'
+
+
+class CartItem(models.Model):
+    """
+    Модель товара в корзине покупок.
+    
+    Атрибуты:
+        cart (ForeignKey): Корзина, к которой относится товар
+        product (ForeignKey): Товар
+        quantity (IntegerField): Количество товара в корзине
+    """
+    cart = models.ForeignKey(
+        Cart,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name='Корзина',
+        help_text='Корзина, к которой относится товар'
+    )
+    
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='cart_items',
+        verbose_name='Товар',
+        help_text='Товар в корзине'
+    )
+    
+    quantity = models.IntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        verbose_name='Количество',
+        help_text='Количество товара в корзине'
+    )
+    
+    class Meta:
+        verbose_name = 'Товар в корзине'
+        verbose_name_plural = 'Товары в корзинах'
+        unique_together = ['cart', 'product']  # Один товар может быть только один раз в корзине
+    
+    def __str__(self):
+        """Возвращает строковое представление товара в корзине."""
+        return f'{self.product.name} x{self.quantity} в корзине {self.cart.user.username}'
 

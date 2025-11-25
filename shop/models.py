@@ -1,12 +1,11 @@
 """
-Модель Product для интернет-магазина.
+Модели для интернет-магазина.
 
-Эта модель представляет товар в интернет-магазине и содержит
-всю необходимую информацию о товаре: название, описание, цену,
-изображение и дату создания.
+Модели Product и Message для работы с товарами и сообщениями пользователей.
 """
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.contrib.auth.models import User
 from decimal import Decimal
 
 
@@ -62,4 +61,57 @@ class Product(models.Model):
     def __str__(self):
         """Возвращает строковое представление товара."""
         return self.name
+
+
+class Message(models.Model):
+    """
+    Модель сообщения от пользователя.
+    
+    Атрибуты:
+        user (ForeignKey): Связь с пользователем (опционально, если не авторизован)
+        name (CharField): Имя отправителя
+        email (EmailField): Электронная почта отправителя
+        message (TextField): Текст сообщения
+        created_at (DateTimeField): Дата и время создания сообщения
+    """
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Пользователь',
+        help_text='Пользователь, отправивший сообщение (если авторизован)'
+    )
+    
+    name = models.CharField(
+        max_length=100,
+        verbose_name='Имя',
+        help_text='Имя отправителя сообщения'
+    )
+    
+    email = models.EmailField(
+        verbose_name='Электронная почта',
+        help_text='Email отправителя сообщения'
+    )
+    
+    message = models.TextField(
+        max_length=500,
+        verbose_name='Сообщение',
+        help_text='Текст сообщения (максимум 500 символов)'
+    )
+    
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата создания',
+        help_text='Дата и время отправки сообщения'
+    )
+    
+    class Meta:
+        verbose_name = 'Сообщение'
+        verbose_name_plural = 'Сообщения'
+        ordering = ['-created_at']  # Сортировка по дате создания (новые сначала)
+    
+    def __str__(self):
+        """Возвращает строковое представление сообщения."""
+        return f'Сообщение от {self.name} ({self.email})'
 

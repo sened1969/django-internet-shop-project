@@ -1,0 +1,33 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Главная страница - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="home-container">
+        <h1 class="page-title">Добро пожаловать, {{ user.username }}!</h1>
+        
+        <div class="home-content">
+            <div class="welcome-card">
+                <h2>Добро пожаловать в интернет-магазин!</h2>
+                <p>Вы успешно авторизованы в системе.</p>
+                <p>Теперь вы можете:</p>
+                <ul class="feature-list">
+                    <li>Просматривать каталог товаров</li>
+                    <li>Отправлять сообщения через форму обратной связи</li>
+                    <li>Просматривать свой профиль и историю сообщений</li>
+                </ul>
+            </div>
+            
+            <div class="quick-actions">
+                <h3>Быстрые действия:</h3>
+                <div class="action-buttons">
+                    <a href="{% url 'shop:product_list' %}" class="btn btn-primary">Каталог товаров</a>
+                    <a href="{% url 'shop:profile' %}" class="btn btn-primary">Мой профиль</a>
+                    <a href="{% url 'shop:contact' %}" class="btn btn-primary">Связаться с нами</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

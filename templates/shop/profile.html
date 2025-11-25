@@ -1,0 +1,56 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Профиль пользователя - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="profile-container">
+        <h1 class="page-title">Профиль пользователя</h1>
+        
+        <div class="profile-content">
+            <div class="profile-info">
+                <h2>Информация о пользователе</h2>
+                <div class="info-card">
+                    <div class="info-item">
+                        <strong>Имя пользователя:</strong> {{ user.username }}
+                    </div>
+                    <div class="info-item">
+                        <strong>Email:</strong> {{ user.email|default:"Не указан" }}
+                    </div>
+                    <div class="info-item">
+                        <strong>Дата регистрации:</strong> {{ user.date_joined|date:"d.m.Y H:i" }}
+                    </div>
+                    <div class="info-item">
+                        <strong>Последний вход:</strong> {{ user.last_login|date:"d.m.Y H:i"|default:"Никогда" }}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-messages">
+                <h2>Мои сообщения</h2>
+                
+                {% if user_messages %}
+                    <div class="messages-list">
+                        {% for message in user_messages %}
+                            <div class="message-card">
+                                <div class="message-header">
+                                    <strong>От:</strong> {{ message.name }} ({{ message.email }})
+                                    <span class="message-date">{{ message.created_at|date:"d.m.Y H:i" }}</span>
+                                </div>
+                                <div class="message-body">
+                                    {{ message.message|linebreaks }}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <p class="empty-message">Вы еще не отправляли сообщений.</p>
+                        <a href="{% url 'shop:contact' %}" class="btn btn-primary">Отправить сообщение</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

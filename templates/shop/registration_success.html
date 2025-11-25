@@ -1,0 +1,19 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Регистрация успешна - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="success-container">
+        <div class="success-message">
+            <h1 class="success-title">🎉 Регистрация прошла успешно!</h1>
+            <p class="success-text">Вы успешно зарегистрировались в системе.</p>
+            <p class="success-text">Теперь вы можете войти в свой аккаунт.</p>
+            <div class="success-actions">
+                <a href="{% url 'shop:login' %}" class="btn btn-primary">Войти</a>
+                <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">На главную</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

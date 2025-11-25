@@ -18,11 +18,12 @@
             <nav class="nav">
                 <ul class="nav-list">
                     <li><a href="{% url 'shop:product_list' %}" class="nav-link">Каталог товаров</a></li>
+                    <li><a href="{% url 'shop:cart' %}" class="nav-link">Корзина</a></li>
                     {% if user.is_authenticated %}
                         <li><a href="{% url 'shop:home' %}" class="nav-link">Главная</a></li>
                         <li><a href="{% url 'shop:profile' %}" class="nav-link">Профиль</a></li>
                         <li><a href="{% url 'shop:contact' %}" class="nav-link">Связаться с нами</a></li>
-                        <li><span class="nav-link">Привет, {{ user.username }}!</span></li>
+                        <li><span class="nav-link">Привет, {{ user.email }}!</span></li>
                         <li><a href="{% url 'shop:logout' %}" class="nav-link">Выйти</a></li>
                     {% else %}
                         <li><a href="{% url 'shop:register' %}" class="nav-link">Регистрация</a></li>

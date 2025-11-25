@@ -1,0 +1,27 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Удаление аккаунта - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1 class="page-title">Удаление аккаунта</h1>
+        
+        <div class="alert alert-error">
+            <p><strong>ВНИМАНИЕ!</strong> Удаление аккаунта - это необратимое действие.</p>
+            <p>Все ваши данные, включая заказы и сообщения, будут безвозвратно удалены.</p>
+        </div>
+        
+        <p>Для подтверждения удаления аккаунта мы отправим вам письмо с ссылкой для подтверждения.</p>
+        
+        <form method="post" class="form">
+            {% csrf_token %}
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Отправить письмо для подтверждения</button>
+                <a href="{% url 'shop:profile' %}" class="btn btn-secondary">Отмена</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
+

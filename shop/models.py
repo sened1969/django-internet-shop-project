@@ -5,8 +5,98 @@
 """
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.utils.translation import gettext_lazy as _
 from decimal import Decimal
+
+
+class CustomUserManager(BaseUserManager):
+    """Менеджер для кастомной модели пользователя."""
+    
+    def create_user(self, email, password=None, **extra_fields):
+        """Создает и сохраняет обычного пользователя с указанным email и паролем."""
+        if not email:
+            raise ValueError(_('The Email field must be set'))
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Создает и сохраняет суперпользователя с указанным email и паролем."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)  # Суперпользователь активен по умолчанию
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(_('Superuser must have is_staff=True.'))
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(_('Superuser must have is_superuser=True.'))
+
+        return self.create_user(email, password, **extra_fields)
+
+
+class CustomUser(AbstractBaseUser, PermissionsMixin):
+    """
+    Кастомная модель пользователя.
+    
+    Использует email в качестве основного поля для аутентификации.
+    """
+    email = models.EmailField(
+        unique=True,
+        verbose_name='Email',
+        help_text='Email адрес пользователя'
+    )
+    phone_number = models.CharField(
+        max_length=15,
+        blank=True,
+        verbose_name='Номер телефона',
+        help_text='Номер телефона пользователя'
+    )
+    address = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Адрес доставки',
+        help_text='Адрес доставки пользователя'
+    )
+    is_active = models.BooleanField(
+        default=False,
+        verbose_name='Аккаунт активен',
+        help_text='Указывает, подтвержден ли email пользователя'
+    )
+    is_staff = models.BooleanField(
+        default=False,
+        verbose_name='Сотрудник',
+        help_text='Указывает, является ли пользователь сотрудником'
+    )
+    date_joined = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата регистрации',
+        help_text='Дата и время регистрации пользователя'
+    )
+    
+    objects = CustomUserManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+        ordering = ['-date_joined']
+
+    def __str__(self):
+        """Возвращает строковое представление пользователя."""
+        return self.email
+    
+    def get_full_name(self):
+        """Возвращает полное имя пользователя (email)."""
+        return self.email
+    
+    def get_short_name(self):
+        """Возвращает короткое имя пользователя (email)."""
+        return self.email
 
 
 class Category(models.Model):
@@ -142,7 +232,7 @@ class Message(models.Model):
         created_at (DateTimeField): Дата и время создания сообщения
     """
     user = models.ForeignKey(
-        User,
+        'CustomUser',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -198,7 +288,7 @@ class Order(models.Model):
     ]
     
     user = models.ForeignKey(
-        User,
+        'CustomUser',
         on_delete=models.CASCADE,
         related_name='orders',
         verbose_name='Пользователь',
@@ -226,7 +316,7 @@ class Order(models.Model):
     
     def __str__(self):
         """Возвращает строковое представление заказа."""
-        return f'Заказ #{self.id} от {self.user.username} ({self.get_status_display()})'
+        return f'Заказ #{self.id} от {self.user.email} ({self.get_status_display()})'
     
     def total_price(self):
         """
@@ -306,7 +396,7 @@ class Review(models.Model):
     )
     
     user = models.ForeignKey(
-        User,
+        'CustomUser',
         on_delete=models.CASCADE,
         related_name='reviews',
         verbose_name='Пользователь',
@@ -337,7 +427,7 @@ class Review(models.Model):
     
     def __str__(self):
         """Возвращает строковое представление отзыва."""
-        return f'Отзыв от {self.user.username} на {self.product.name} ({self.rating}/5)'
+        return f'Отзыв от {self.user.email} на {self.product.name} ({self.rating}/5)'
 
 
 class Cart(models.Model):
@@ -350,7 +440,7 @@ class Cart(models.Model):
         updated_at (DateTimeField): Дата и время последнего обновления корзины
     """
     user = models.OneToOneField(
-        User,
+        'CustomUser',
         on_delete=models.CASCADE,
         related_name='cart',
         verbose_name='Пользователь',
@@ -375,7 +465,7 @@ class Cart(models.Model):
     
     def __str__(self):
         """Возвращает строковое представление корзины."""
-        return f'Корзина пользователя {self.user.username}'
+        return f'Корзина пользователя {self.user.email}'
 
 
 class CartItem(models.Model):
@@ -417,5 +507,5 @@ class CartItem(models.Model):
     
     def __str__(self):
         """Возвращает строковое представление товара в корзине."""
-        return f'{self.product.name} x{self.quantity} в корзине {self.cart.user.username}'
+        return f'{self.product.name} x{self.quantity} в корзине {self.cart.user.email}'
 

@@ -62,7 +62,24 @@
                             <strong>Дата добавления:</strong> 
                             {{ product.created_at|date:"d.m.Y в H:i" }}
                         </p>
+                        <p>
+                            <strong>На складе:</strong> 
+                            {{ product.stock }} шт.
+                        </p>
                     </div>
+                    
+                    <!-- Кнопка добавления в корзину -->
+                    {% if product.stock > 0 %}
+                        <form method="post" action="{% url 'shop:add_to_cart' product.id %}" class="add-to-cart-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="btn btn-primary">Добавить в корзину</button>
+                        </form>
+                    {% else %}
+                        <div class="out-of-stock">
+                            <p>Товар временно отсутствует на складе</p>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

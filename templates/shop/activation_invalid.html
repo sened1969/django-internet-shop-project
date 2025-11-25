@@ -1,0 +1,21 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Ошибка активации - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1 class="page-title">Ошибка активации</h1>
+        
+        <div class="alert alert-error">
+            <p>Ссылка активации недействительна или истек срок её действия.</p>
+            <p>Пожалуйста, зарегистрируйтесь снова или свяжитесь с администратором.</p>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'shop:register' %}" class="btn btn-primary">Зарегистрироваться</a>
+            <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">На главную</a>
+        </div>
+    </div>
+{% endblock %}
+

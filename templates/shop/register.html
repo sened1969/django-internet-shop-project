@@ -17,19 +17,6 @@
             {% endif %}
             
             <div class="form-group">
-                <label for="{{ form.username.id_for_label }}" class="form-label">
-                    {{ form.username.label }}
-                </label>
-                {{ form.username }}
-                {% if form.username.errors %}
-                    <div class="error-message">{{ form.username.errors }}</div>
-                {% endif %}
-                {% if form.username.help_text %}
-                    <small class="form-help">{{ form.username.help_text }}</small>
-                {% endif %}
-            </div>
-            
-            <div class="form-group">
                 <label for="{{ form.email.id_for_label }}" class="form-label">
                     {{ form.email.label }}
                 </label>
@@ -39,6 +26,32 @@
                 {% endif %}
                 {% if form.email.help_text %}
                     <small class="form-help">{{ form.email.help_text }}</small>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.phone_number.id_for_label }}" class="form-label">
+                    {{ form.phone_number.label }}
+                </label>
+                {{ form.phone_number }}
+                {% if form.phone_number.errors %}
+                    <div class="error-message">{{ form.phone_number.errors }}</div>
+                {% endif %}
+                {% if form.phone_number.help_text %}
+                    <small class="form-help">{{ form.phone_number.help_text }}</small>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.address.id_for_label }}" class="form-label">
+                    {{ form.address.label }}
+                </label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                    <div class="error-message">{{ form.address.errors }}</div>
+                {% endif %}
+                {% if form.address.help_text %}
+                    <small class="form-help">{{ form.address.help_text }}</small>
                 {% endif %}
             </div>
             

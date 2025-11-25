@@ -12,10 +12,13 @@
                 <h2>Информация о пользователе</h2>
                 <div class="info-card">
                     <div class="info-item">
-                        <strong>Имя пользователя:</strong> {{ user.username }}
+                        <strong>Email:</strong> {{ user.email }}
                     </div>
                     <div class="info-item">
-                        <strong>Email:</strong> {{ user.email|default:"Не указан" }}
+                        <strong>Номер телефона:</strong> {{ user.phone_number|default:"Не указан" }}
+                    </div>
+                    <div class="info-item">
+                        <strong>Адрес доставки:</strong> {{ user.address|default:"Не указан" }}
                     </div>
                     <div class="info-item">
                         <strong>Дата регистрации:</strong> {{ user.date_joined|date:"d.m.Y H:i" }}
@@ -24,6 +27,38 @@
                         <strong>Последний вход:</strong> {{ user.last_login|date:"d.m.Y H:i"|default:"Никогда" }}
                     </div>
                 </div>
+                
+                <div class="profile-actions">
+                    <a href="{% url 'shop:profile_edit' %}" class="btn btn-primary">Редактировать профиль</a>
+                    <a href="{% url 'shop:password_change' %}" class="btn btn-secondary">Изменить пароль</a>
+                    <a href="{% url 'shop:account_delete_request' %}" class="btn btn-danger">Удалить аккаунт</a>
+                </div>
+            </div>
+            
+            <div class="profile-orders">
+                <h2>История заказов</h2>
+                
+                {% if orders %}
+                    <div class="orders-list">
+                        {% for order in orders %}
+                            <div class="order-card">
+                                <div class="order-header">
+                                    <strong>Заказ #{{ order.id }}</strong>
+                                    <span class="order-status">{{ order.get_status_display }}</span>
+                                    <span class="order-date">{{ order.created_at|date:"d.m.Y H:i" }}</span>
+                                </div>
+                                <div class="order-body">
+                                    <p><strong>Стоимость:</strong> {{ order.total_price }} руб.</p>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <p class="empty-message">У вас пока нет заказов.</p>
+                        <a href="{% url 'shop:product_list' %}" class="btn btn-primary">Перейти к каталогу</a>
+                    </div>
+                {% endif %}
             </div>
             
             <div class="profile-messages">

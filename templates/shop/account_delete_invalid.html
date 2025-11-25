@@ -1,0 +1,21 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Ошибка удаления аккаунта - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1 class="page-title">Ошибка удаления аккаунта</h1>
+        
+        <div class="alert alert-error">
+            <p>Ссылка для удаления аккаунта недействительна или истек срок её действия.</p>
+            <p>Пожалуйста, запросите новую ссылку для удаления аккаунта.</p>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'shop:account_delete_request' %}" class="btn btn-primary">Запросить новую ссылку</a>
+            <a href="{% url 'shop:profile' %}" class="btn btn-secondary">Вернуться в профиль</a>
+        </div>
+    </div>
+{% endblock %}
+

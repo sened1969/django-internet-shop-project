@@ -7,12 +7,24 @@
 """
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404, JsonResponse
-from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth import login, authenticate, logout, get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
+from django.conf import settings
 from django.views.decorators.http import require_http_methods
-from .models import Product, Message
-from .forms import RegistrationForm, LoginForm, ContactForm
+from django.db import transaction
+from .models import Product, Message, Order, Cart, CartItem
+from .forms import (
+    CustomUserCreationForm, EmailAuthenticationForm, ContactForm,
+    ProfileEditForm, CustomPasswordChangeForm, CustomPasswordResetForm,
+    CustomSetPasswordForm
+)
+
+User = get_user_model()
 
 
 def product_list(request):
@@ -84,19 +96,51 @@ def register(request):
     
     Обрабатывает GET и POST запросы:
     - GET: отображает форму регистрации
-    - POST: обрабатывает данные формы и создает нового пользователя
+    - POST: обрабатывает данные формы, создает пользователя и отправляет письмо для подтверждения email
     """
     if request.user.is_authenticated:
         return redirect('shop:home')
     
     if request.method == 'POST':
-        form = RegistrationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            messages.success(request, 'Регистрация прошла успешно! Теперь вы можете войти.')
-            return redirect('shop:registration_success')
+            
+            # Генерация токена для подтверждения email
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            confirmation_link = request.build_absolute_uri(f'/activate/{uid}/{token}/')
+            
+            # Отправка email с подтверждением
+            try:
+                send_mail(
+                    'Подтверждение регистрации',
+                    f'Здравствуйте!\n\n'
+                    f'Спасибо за регистрацию в нашем интернет-магазине.\n\n'
+                    f'Для активации вашего аккаунта перейдите по следующей ссылке:\n'
+                    f'{confirmation_link}\n\n'
+                    f'Если вы не регистрировались на нашем сайте, просто проигнорируйте это письмо.\n\n'
+                    f'С уважением,\n'
+                    f'Команда интернет-магазина',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+                messages.success(
+                    request,
+                    'Регистрация прошла успешно! Пожалуйста, проверьте вашу почту '
+                    'и перейдите по ссылке для активации аккаунта.'
+                )
+            except Exception as e:
+                messages.error(
+                    request,
+                    f'Ошибка при отправке письма: {str(e)}. '
+                    'Пожалуйста, свяжитесь с администратором.'
+                )
+            
+            return redirect('shop:email_confirmation_sent')
     else:
-        form = RegistrationForm()
+        form = CustomUserCreationForm()
     
     context = {
         'form': form,
@@ -105,49 +149,118 @@ def register(request):
     return render(request, 'shop/register.html', context)
 
 
-def registration_success(request):
+def email_confirmation_sent(request):
     """
-    Страница успешной регистрации.
+    Страница с информацией об отправке письма для подтверждения email.
     """
     context = {
-        'page_title': 'Регистрация успешна',
+        'page_title': 'Подтверждение email отправлено',
     }
-    return render(request, 'shop/registration_success.html', context)
+    return render(request, 'shop/email_confirmation_sent.html', context)
+
+
+def activate(request, uidb64, token):
+    """
+    Активация аккаунта пользователя по токену из email.
+    
+    Args:
+        uidb64: Закодированный ID пользователя
+        token: Токен для подтверждения
+    """
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
+        messages.success(request, 'Ваш аккаунт успешно активирован! Теперь вы можете войти.')
+        return redirect('shop:login')
+    else:
+        messages.error(request, 'Ссылка активации недействительна или истек срок её действия.')
+        return render(request, 'shop/activation_invalid.html', {
+            'page_title': 'Ошибка активации'
+        })
 
 
 def login_view(request):
     """
-    Представление для авторизации пользователя.
+    Представление для авторизации пользователя по email.
     
     Обрабатывает GET и POST запросы:
     - GET: отображает форму авторизации
     - POST: проверяет учетные данные и авторизует пользователя
+    Также переносит корзину из сессии в корзину пользователя при входе.
     """
     if request.user.is_authenticated:
         return redirect('shop:home')
     
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
+        form = EmailAuthenticationForm(request, data=request.POST)
         if form.is_valid():
-            username = form.cleaned_data.get('username')
+            email = form.cleaned_data.get('username')  # В форме это поле называется username, но содержит email
             password = form.cleaned_data.get('password')
-            user = authenticate(username=username, password=password)
+            user = authenticate(request, username=email, password=password)
             if user is not None:
+                # Переносим корзину из сессии в корзину пользователя перед входом
+                merge_session_cart_to_user_cart(request, user)
+                
                 login(request, user)
-                messages.success(request, f'Добро пожаловать, {username}!')
+                messages.success(request, f'Добро пожаловать, {email}!')
                 return redirect('shop:home')
             else:
-                messages.error(request, 'Неверное имя пользователя или пароль.')
+                messages.error(request, 'Неверный email или пароль.')
         else:
-            messages.error(request, 'Пожалуйста, исправьте ошибки в форме.')
+            # Ошибки валидации уже обработаны в форме
+            pass
     else:
-        form = LoginForm()
+        form = EmailAuthenticationForm()
     
     context = {
         'form': form,
         'page_title': 'Авторизация',
     }
     return render(request, 'shop/login.html', context)
+
+
+def merge_session_cart_to_user_cart(request, user):
+    """
+    Переносит товары из сессионной корзины в корзину пользователя.
+    
+    Args:
+        request: HTTP-запрос
+        user: Пользователь, в корзину которого переносятся товары
+    """
+    if 'cart' in request.session and request.session['cart']:
+        # Получаем или создаем корзину пользователя
+        cart, created = Cart.objects.get_or_create(user=user)
+        
+        # Переносим товары из сессии
+        session_cart = request.session['cart']
+        for item_data in session_cart:
+            product_id = item_data.get('product_id')
+            quantity = item_data.get('quantity', 1)
+            
+            try:
+                product = Product.objects.get(id=product_id)
+                # Проверяем, есть ли уже такой товар в корзине
+                cart_item, created = CartItem.objects.get_or_create(
+                    cart=cart,
+                    product=product,
+                    defaults={'quantity': quantity}
+                )
+                if not created:
+                    # Если товар уже есть, увеличиваем количество
+                    cart_item.quantity += quantity
+                    cart_item.save()
+            except Product.DoesNotExist:
+                continue
+        
+        # Очищаем сессионную корзину
+        del request.session['cart']
+        request.session.modified = True
 
 
 @login_required
@@ -227,16 +340,233 @@ def profile(request):
     """
     Страница профиля пользователя.
     
-    Отображает данные пользователя и список отправленных им сообщений.
+    Отображает данные пользователя, историю заказов и список отправленных сообщений.
     """
-    user_messages = Message.objects.filter(user=request.user).order_by('-created_at')
+    user_messages = Message.objects.filter(user=request.user).order_by('-created_at')[:10]
+    orders = Order.objects.filter(user=request.user).order_by('-created_at')[:10]
     
     context = {
         'page_title': 'Профиль пользователя',
         'user': request.user,
         'user_messages': user_messages,
+        'orders': orders,
     }
     return render(request, 'shop/profile.html', context)
+
+
+@login_required
+def profile_edit(request):
+    """
+    Редактирование профиля пользователя.
+    """
+    if request.method == 'POST':
+        form = ProfileEditForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Профиль успешно обновлен!')
+            return redirect('shop:profile')
+    else:
+        form = ProfileEditForm(instance=request.user)
+    
+    context = {
+        'form': form,
+        'page_title': 'Редактирование профиля',
+    }
+    return render(request, 'shop/profile_edit.html', context)
+
+
+@login_required
+def password_change(request):
+    """
+    Изменение пароля пользователя.
+    """
+    if request.method == 'POST':
+        form = CustomPasswordChangeForm(user=request.user, data=request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Пароль успешно изменен!')
+            return redirect('shop:profile')
+    else:
+        form = CustomPasswordChangeForm(user=request.user)
+    
+    context = {
+        'form': form,
+        'page_title': 'Изменение пароля',
+    }
+    return render(request, 'shop/password_change.html', context)
+
+
+def password_reset(request):
+    """
+    Сброс пароля - отправка письма с ссылкой для восстановления.
+    """
+    if request.method == 'POST':
+        form = CustomPasswordResetForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                user = User.objects.get(email=email)
+                # Генерация токена для сброса пароля
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                reset_link = request.build_absolute_uri(f'/password-reset-confirm/{uid}/{token}/')
+                
+                send_mail(
+                    'Сброс пароля',
+                    f'Здравствуйте!\n\n'
+                    f'Вы запросили сброс пароля для вашего аккаунта.\n\n'
+                    f'Для установки нового пароля перейдите по следующей ссылке:\n'
+                    f'{reset_link}\n\n'
+                    f'Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.\n\n'
+                    f'С уважением,\n'
+                    f'Команда интернет-магазина',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+                messages.success(
+                    request,
+                    'Письмо с инструкциями по сбросу пароля отправлено на ваш email.'
+                )
+            except User.DoesNotExist:
+                # Не сообщаем, что пользователь не найден (безопасность)
+                messages.success(
+                    request,
+                    'Если пользователь с таким email существует, '
+                    'письмо с инструкциями отправлено.'
+                )
+            except Exception as e:
+                messages.error(
+                    request,
+                    f'Ошибка при отправке письма: {str(e)}. '
+                    'Пожалуйста, свяжитесь с администратором.'
+                )
+            return redirect('shop:password_reset_done')
+    else:
+        form = CustomPasswordResetForm()
+    
+    context = {
+        'form': form,
+        'page_title': 'Сброс пароля',
+    }
+    return render(request, 'shop/password_reset.html', context)
+
+
+def password_reset_done(request):
+    """
+    Страница подтверждения отправки письма для сброса пароля.
+    """
+    context = {
+        'page_title': 'Письмо отправлено',
+    }
+    return render(request, 'shop/password_reset_done.html', context)
+
+
+def password_reset_confirm(request, uidb64, token):
+    """
+    Подтверждение сброса пароля и установка нового пароля.
+    """
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            form = CustomSetPasswordForm(user=user, data=request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Пароль успешно изменен! Теперь вы можете войти.')
+                return redirect('shop:login')
+        else:
+            form = CustomSetPasswordForm(user=user)
+        
+        context = {
+            'form': form,
+            'page_title': 'Установка нового пароля',
+        }
+        return render(request, 'shop/password_reset_confirm.html', context)
+    else:
+        messages.error(request, 'Ссылка для сброса пароля недействительна или истек срок её действия.')
+        return render(request, 'shop/password_reset_invalid.html', {
+            'page_title': 'Ошибка сброса пароля'
+        })
+
+
+@login_required
+def account_delete_request(request):
+    """
+    Запрос на удаление аккаунта - отправка письма с подтверждением.
+    """
+    if request.method == 'POST':
+        # Генерация токена для подтверждения удаления
+        token = default_token_generator.make_token(request.user)
+        uid = urlsafe_base64_encode(force_bytes(request.user.pk))
+        delete_link = request.build_absolute_uri(f'/account-delete-confirm/{uid}/{token}/')
+        
+        try:
+            send_mail(
+                'Подтверждение удаления аккаунта',
+                f'Здравствуйте!\n\n'
+                f'Вы запросили удаление вашего аккаунта.\n\n'
+                f'Для подтверждения удаления перейдите по следующей ссылке:\n'
+                f'{delete_link}\n\n'
+                f'ВНИМАНИЕ: Это действие необратимо! Все ваши данные будут удалены.\n\n'
+                f'Если вы не запрашивали удаление аккаунта, просто проигнорируйте это письмо.\n\n'
+                f'С уважением,\n'
+                f'Команда интернет-магазина',
+                settings.DEFAULT_FROM_EMAIL,
+                [request.user.email],
+                fail_silently=False,
+            )
+            messages.success(
+                request,
+                'Письмо с подтверждением удаления аккаунта отправлено на ваш email.'
+            )
+        except Exception as e:
+            messages.error(
+                request,
+                f'Ошибка при отправке письма: {str(e)}. '
+                'Пожалуйста, свяжитесь с администратором.'
+            )
+        
+        return redirect('shop:profile')
+    
+    context = {
+        'page_title': 'Удаление аккаунта',
+    }
+    return render(request, 'shop/account_delete_request.html', context)
+
+
+def account_delete_confirm(request, uidb64, token):
+    """
+    Подтверждение и выполнение удаления аккаунта.
+    """
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            # Удаляем пользователя (каскадное удаление удалит связанные данные)
+            user_email = user.email
+            user.delete()
+            messages.success(request, f'Аккаунт {user_email} успешно удален.')
+            return redirect('shop:product_list')
+        
+        context = {
+            'page_title': 'Подтверждение удаления аккаунта',
+            'user': user,
+        }
+        return render(request, 'shop/account_delete_confirm.html', context)
+    else:
+        messages.error(request, 'Ссылка для удаления аккаунта недействительна или истек срок её действия.')
+        return render(request, 'shop/account_delete_invalid.html', {
+            'page_title': 'Ошибка удаления аккаунта'
+        })
 
 
 def logout_view(request):
@@ -246,4 +576,93 @@ def logout_view(request):
     logout(request)
     messages.success(request, 'Вы успешно вышли из системы.')
     return redirect('shop:product_list')
+
+
+def add_to_cart(request, product_id):
+    """
+    Добавление товара в корзину.
+    
+    Для авторизованных пользователей - добавляет в корзину пользователя.
+    Для анонимных пользователей - сохраняет в сессии.
+    """
+    product = get_object_or_404(Product, id=product_id)
+    quantity = int(request.POST.get('quantity', 1))
+    
+    if request.user.is_authenticated:
+        # Для авторизованных пользователей
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': quantity}
+        )
+        if not created:
+            cart_item.quantity += quantity
+            cart_item.save()
+        messages.success(request, f'{product.name} добавлен в корзину.')
+    else:
+        # Для анонимных пользователей - сохраняем в сессии
+        if 'cart' not in request.session:
+            request.session['cart'] = []
+        
+        # Проверяем, есть ли уже такой товар в сессионной корзине
+        cart = request.session['cart']
+        found = False
+        for item in cart:
+            if item.get('product_id') == product_id:
+                item['quantity'] = item.get('quantity', 1) + quantity
+                found = True
+                break
+        
+        if not found:
+            cart.append({
+                'product_id': product_id,
+                'quantity': quantity
+            })
+        
+        request.session['cart'] = cart
+        request.session.modified = True
+        messages.success(request, f'{product.name} добавлен в корзину.')
+    
+    return redirect('shop:product_detail', product_id=product_id)
+
+
+def view_cart(request):
+    """
+    Просмотр корзины покупок.
+    """
+    cart_items = []
+    total = 0
+    
+    if request.user.is_authenticated:
+        # Для авторизованных пользователей
+        try:
+            cart = Cart.objects.get(user=request.user)
+            cart_items = CartItem.objects.filter(cart=cart)
+            for item in cart_items:
+                total += item.product.price * item.quantity
+        except Cart.DoesNotExist:
+            pass
+    else:
+        # Для анонимных пользователей - читаем из сессии
+        if 'cart' in request.session:
+            session_cart = request.session['cart']
+            for item_data in session_cart:
+                try:
+                    product = Product.objects.get(id=item_data['product_id'])
+                    quantity = item_data.get('quantity', 1)
+                    cart_items.append({
+                        'product': product,
+                        'quantity': quantity
+                    })
+                    total += product.price * quantity
+                except Product.DoesNotExist:
+                    continue
+    
+    context = {
+        'cart_items': cart_items,
+        'total': total,
+        'page_title': 'Корзина покупок',
+    }
+    return render(request, 'shop/cart.html', context)
 

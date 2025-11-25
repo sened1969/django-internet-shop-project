@@ -4,10 +4,44 @@
 Позволяет управлять товарами, категориями, заказами, отзывами и корзиной через административный интерфейс Django.
 """
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.utils.translation import gettext_lazy as _
 from .models import (
-    Category, Product, Message, Order, OrderItem, 
+    CustomUser, Category, Product, Message, Order, OrderItem, 
     Review, Cart, CartItem
 )
+
+
+@admin.register(CustomUser)
+class CustomUserAdmin(BaseUserAdmin):
+    """Административный интерфейс для кастомной модели пользователя."""
+    
+    list_display = ('email', 'phone_number', 'is_active', 'is_staff', 'date_joined')
+    list_filter = ('is_active', 'is_staff', 'is_superuser', 'date_joined')
+    search_fields = ('email', 'phone_number')
+    ordering = ('-date_joined',)
+    
+    fieldsets = (
+        (None, {'fields': ('email', 'password')}),
+        (_('Персональная информация'), {
+            'fields': ('phone_number', 'address')
+        }),
+        (_('Права доступа'), {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+        }),
+        (_('Важные даты'), {
+            'fields': ('last_login', 'date_joined')
+        }),
+    )
+    
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'password1', 'password2', 'phone_number', 'address'),
+        }),
+    )
+    
+    readonly_fields = ('last_login', 'date_joined')
 
 
 @admin.register(Category)
@@ -104,7 +138,7 @@ class OrderAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'user', 'status', 'total_price', 'created_at')
     list_filter = ('status', 'created_at')
-    search_fields = ('user__username', 'user__email')
+    search_fields = ('user__email',)
     readonly_fields = ('created_at', 'total_price')
     inlines = [OrderItemInline]
     
@@ -130,7 +164,7 @@ class OrderItemAdmin(admin.ModelAdmin):
     """
     list_display = ('order', 'product', 'quantity', 'item_total')
     list_filter = ('order',)
-    search_fields = ('product__name', 'order__user__username')
+    search_fields = ('product__name', 'order__user__email')
     
     def item_total(self, obj):
         """Вычисляет общую стоимость товара в заказе."""
@@ -145,7 +179,7 @@ class ReviewAdmin(admin.ModelAdmin):
     """
     list_display = ('product', 'user', 'rating', 'created_at', 'text_preview')
     list_filter = ('rating', 'created_at')
-    search_fields = ('product__name', 'user__username', 'text')
+    search_fields = ('product__name', 'user__email', 'text')
     readonly_fields = ('created_at',)
     
     fieldsets = (
@@ -181,7 +215,7 @@ class CartAdmin(admin.ModelAdmin):
     Класс для настройки отображения модели Cart в админ-панели.
     """
     list_display = ('user', 'items_count', 'created_at', 'updated_at')
-    search_fields = ('user__username', 'user__email')
+    search_fields = ('user__email',)
     readonly_fields = ('created_at', 'updated_at')
     inlines = [CartItemInline]
     
@@ -204,7 +238,7 @@ class CartItemAdmin(admin.ModelAdmin):
     """
     list_display = ('cart', 'product', 'quantity', 'item_total')
     list_filter = ('cart',)
-    search_fields = ('product__name', 'cart__user__username')
+    search_fields = ('product__name', 'cart__user__email')
     
     def item_total(self, obj):
         """Вычисляет общую стоимость товара в корзине."""

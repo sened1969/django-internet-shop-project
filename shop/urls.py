@@ -20,7 +20,8 @@ urlpatterns = [
     
     # Маршруты для регистрации и авторизации
     path('register/', views.register, name='register'),
-    path('registration-success/', views.registration_success, name='registration_success'),
+    path('email-confirmation-sent/', views.email_confirmation_sent, name='email_confirmation_sent'),
+    path('activate/<uidb64>/<token>/', views.activate, name='activate'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     
@@ -31,7 +32,22 @@ urlpatterns = [
     path('contact/', views.contact, name='contact'),
     path('contact/ajax/', views.contact_ajax, name='contact_ajax'),
     
-    # Маршрут для профиля пользователя
+    # Маршруты для профиля пользователя
     path('profile/', views.profile, name='profile'),
+    path('profile/edit/', views.profile_edit, name='profile_edit'),
+    path('profile/password-change/', views.password_change, name='password_change'),
+    
+    # Маршруты для сброса пароля
+    path('password-reset/', views.password_reset, name='password_reset'),
+    path('password-reset-done/', views.password_reset_done, name='password_reset_done'),
+    path('password-reset-confirm/<uidb64>/<token>/', views.password_reset_confirm, name='password_reset_confirm'),
+    
+    # Маршруты для удаления аккаунта
+    path('account-delete-request/', views.account_delete_request, name='account_delete_request'),
+    path('account-delete-confirm/<uidb64>/<token>/', views.account_delete_confirm, name='account_delete_confirm'),
+    
+    # Маршруты для корзины
+    path('cart/', views.view_cart, name='cart'),
+    path('cart/add/<int:product_id>/', views.add_to_cart, name='add_to_cart'),
 ]
 

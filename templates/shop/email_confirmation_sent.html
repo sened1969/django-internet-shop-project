@@ -1,0 +1,22 @@
+{% extends "shop/base.html" %}
+{% load static %}
+
+{% block title %}Подтверждение email отправлено - {{ block.super }}{% endblock %}
+
+{% block content %}
+    <div class="form-container">
+        <h1 class="page-title">Подтверждение email отправлено</h1>
+        
+        <div class="alert alert-info">
+            <p>Мы отправили письмо с подтверждением на ваш email адрес.</p>
+            <p>Пожалуйста, проверьте вашу почту и перейдите по ссылке для активации аккаунта.</p>
+            <p>Если письмо не пришло, проверьте папку "Спам" или попробуйте зарегистрироваться снова.</p>
+        </div>
+        
+        <div class="form-actions">
+            <a href="{% url 'shop:login' %}" class="btn btn-primary">Войти</a>
+            <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">На главную</a>
+        </div>
+    </div>
+{% endblock %}
+

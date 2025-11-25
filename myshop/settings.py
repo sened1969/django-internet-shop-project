@@ -143,6 +143,20 @@ MEDIA_ROOT = BASE_DIR / 'media'  # Директория для хранения 
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Кастомная модель пользователя
+AUTH_USER_MODEL = 'shop.CustomUser'
+
+# Настройки email для разработки (консольный вывод)
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Для продакшена используйте:
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'your-email@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your-password'
+DEFAULT_FROM_EMAIL = 'admin@shop.com'
+
 # Logging configuration
 LOGGING = {
     'version': 1,

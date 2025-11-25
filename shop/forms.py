@@ -4,33 +4,25 @@
 Содержит формы для регистрации, авторизации и отправки сообщений.
 """
 from django import forms
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from .models import Message
 
+User = get_user_model()
 
-class RegistrationForm(forms.ModelForm):
+
+class CustomUserCreationForm(forms.ModelForm):
     """
-    Форма регистрации нового пользователя.
+    Форма регистрации нового пользователя с кастомной моделью.
     
     Поля:
-        username: Имя пользователя
-        email: Электронная почта
+        email: Электронная почта (используется для входа)
+        phone_number: Номер телефона
+        address: Адрес доставки
         password1: Пароль
         password2: Подтверждение пароля
     """
-    username = forms.CharField(
-        max_length=150,
-        label='Имя пользователя',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'Введите имя пользователя',
-            'required': True
-        }),
-        help_text='Обязательное поле. Не более 150 символов.'
-    )
-    
     email = forms.EmailField(
         label='Электронная почта',
         widget=forms.EmailInput(attrs={
@@ -38,7 +30,29 @@ class RegistrationForm(forms.ModelForm):
             'placeholder': 'Введите email',
             'required': True
         }),
-        help_text='Введите действующий email адрес.'
+        help_text='Введите действующий email адрес. Он будет использоваться для входа.'
+    )
+    
+    phone_number = forms.CharField(
+        max_length=15,
+        label='Номер телефона',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите номер телефона (необязательно)'
+        }),
+        help_text='Номер телефона (необязательно)'
+    )
+    
+    address = forms.CharField(
+        max_length=255,
+        label='Адрес доставки',
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите адрес доставки (необязательно)'
+        }),
+        help_text='Адрес доставки (необязательно)'
     )
     
     password1 = forms.CharField(
@@ -63,7 +77,7 @@ class RegistrationForm(forms.ModelForm):
     
     class Meta:
         model = User
-        fields = ['username', 'email']
+        fields = ['email', 'phone_number', 'address']
     
     def clean_email(self):
         """Проверка уникальности email."""
@@ -89,22 +103,27 @@ class RegistrationForm(forms.ModelForm):
         """Сохранение пользователя с хешированием пароля."""
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password1'])
+        user.is_active = False  # Аккаунт не активен до подтверждения email
         if commit:
             user.save()
         return user
 
 
-class LoginForm(AuthenticationForm):
+# Для обратной совместимости
+RegistrationForm = CustomUserCreationForm
+
+
+class EmailAuthenticationForm(AuthenticationForm):
     """
-    Форма авторизации пользователя.
+    Форма авторизации пользователя по email.
     
-    Наследуется от AuthenticationForm Django.
+    Наследуется от AuthenticationForm Django, но использует email вместо username.
     """
-    username = forms.CharField(
-        label='Имя пользователя',
-        widget=forms.TextInput(attrs={
+    username = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Введите имя пользователя',
+            'placeholder': 'Введите email',
             'autofocus': True
         })
     )
@@ -116,6 +135,103 @@ class LoginForm(AuthenticationForm):
             'placeholder': 'Введите пароль'
         })
     )
+    
+    def clean(self):
+        """Проверка учетных данных и активности аккаунта."""
+        username = self.cleaned_data.get('username')
+        password = self.cleaned_data.get('password')
+
+        if username is not None and password:
+            # Используем email для поиска пользователя
+            try:
+                user = User.objects.get(email=username)
+            except User.DoesNotExist:
+                raise ValidationError('Неверный email или пароль.')
+            
+            # Проверяем, активен ли аккаунт
+            if not user.is_active:
+                raise ValidationError(
+                    'Ваш аккаунт не активирован. Пожалуйста, проверьте вашу почту '
+                    'и перейдите по ссылке для активации.'
+                )
+            
+            # Проверяем пароль
+            if not user.check_password(password):
+                raise ValidationError('Неверный email или пароль.')
+        
+        return self.cleaned_data
+
+
+# Для обратной совместимости
+LoginForm = EmailAuthenticationForm
+
+
+class ProfileEditForm(forms.ModelForm):
+    """Форма редактирования профиля пользователя."""
+    
+    class Meta:
+        model = User
+        fields = ['phone_number', 'address']
+        widgets = {
+            'phone_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Введите номер телефона'
+            }),
+            'address': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Введите адрес доставки'
+            }),
+        }
+        labels = {
+            'phone_number': 'Номер телефона',
+            'address': 'Адрес доставки',
+        }
+
+
+class CustomPasswordChangeForm(PasswordChangeForm):
+    """Форма изменения пароля с кастомными виджетами."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['old_password'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Введите текущий пароль'
+        })
+        self.fields['new_password1'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Введите новый пароль'
+        })
+        self.fields['new_password2'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Повторите новый пароль'
+        })
+
+
+class CustomPasswordResetForm(PasswordResetForm):
+    """Форма сброса пароля с кастомными виджетами."""
+    
+    email = forms.EmailField(
+        label='Email',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Введите ваш email'
+        })
+    )
+
+
+class CustomSetPasswordForm(SetPasswordForm):
+    """Форма установки нового пароля с кастомными виджетами."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['new_password1'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Введите новый пароль'
+        })
+        self.fields['new_password2'].widget.attrs.update({
+            'class': 'form-control',
+            'placeholder': 'Повторите новый пароль'
+        })
 
 
 class ContactForm(forms.ModelForm):

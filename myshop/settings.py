@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'shop',  # Наше приложение интернет-магазина
+    'books',  # Приложение для работы с книгами (Тема 20)
 ]
 
 MIDDLEWARE = [

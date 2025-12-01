@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Магазин{% endblock %}</title>
+    {% comment %} <link rel="stylesheet" href="{% static 'css/style.css' %}">  <!-- Подключите свой CSS файл, если нужно --> {% endcomment %}
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="{% url 'recent_orders' %}">Заказы за последние 30 дней</a></li>
+                <li><a href="{% url 'product_filter' %}">Фильтр продуктов</a></li>
+                <li><a href="{% url 'popular_products' %}">Популярные продукты</a></li>
+                <li><a href="{% url 'combined_filter' %}">Комбинированный фильтр</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}
+        <!-- Здесь будет изменяемый контент -->
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>© 2024 Ваш Магазин</p>
+    </footer>
+</body>
+</html>

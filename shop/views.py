@@ -17,7 +17,11 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
-from .models import Product, Message, Order, Cart, CartItem
+from django.db.models import Count, Q
+from django.core.paginator import Paginator
+from django.utils import timezone
+from datetime import timedelta
+from .models import Product, Message, Order, Cart, CartItem, Category
 from .forms import (
     CustomUserCreationForm, EmailAuthenticationForm, ContactForm,
     ProfileEditForm, CustomPasswordChangeForm, CustomPasswordResetForm,
@@ -29,27 +33,128 @@ User = get_user_model()
 
 def product_list(request):
     """
-    Представление для отображения списка всех товаров.
+    Представление для отображения списка товаров с фильтрацией, сортировкой и пагинацией.
     
-    Получает все товары из базы данных и передает их в шаблон
-    для отображения на странице списка товаров.
+    Поддерживает:
+    - Фильтрацию по категории, цене и дате добавления
+    - Сортировку по популярности, цене и дате
+    - Пагинацию (10 товаров на странице)
+    - AJAX-подгрузку данных без перезагрузки страницы
     
     Args:
         request: HTTP-запрос от пользователя
         
     Returns:
-        HttpResponse: HTML-страница со списком товаров
+        HttpResponse: HTML-страница со списком товаров или JSON-ответ для AJAX
     """
-    # Получаем все товары из базы данных
-    products = Product.objects.all()
+    # Получаем параметры фильтрации из GET-запроса
+    category_id = request.GET.get('category', '')
+    min_price = request.GET.get('min_price', '')
+    max_price = request.GET.get('max_price', '')
+    date_filter = request.GET.get('date_filter', 'all')  # '7days', '30days', 'all'
     
-    # Формируем контекст для передачи в шаблон
+    # Получаем параметр сортировки
+    sort = request.GET.get('sort', '-created_at')  # По умолчанию новые сначала
+    
+    # Начинаем с аннотации для подсчёта популярности (количество заказов)
+    products = Product.objects.select_related('category').annotate(
+        order_count=Count('order_items')
+    )
+    
+    # Применяем фильтры
+    if category_id:
+        try:
+            products = products.filter(category_id=int(category_id))
+        except (ValueError, TypeError):
+            pass  # Игнорируем неверные значения
+    
+    if min_price:
+        try:
+            products = products.filter(price__gte=float(min_price))
+        except (ValueError, TypeError):
+            pass
+    
+    if max_price:
+        try:
+            products = products.filter(price__lte=float(max_price))
+        except (ValueError, TypeError):
+            pass
+    
+    # Фильтрация по дате добавления
+    if date_filter == '7days':
+        seven_days_ago = timezone.now() - timedelta(days=7)
+        products = products.filter(created_at__gte=seven_days_ago)
+    elif date_filter == '30days':
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        products = products.filter(created_at__gte=thirty_days_ago)
+    # Если 'all' или другое значение - не фильтруем по дате
+    
+    # Применяем сортировку
+    if sort == 'popularity':
+        products = products.order_by('-order_count', '-created_at')
+    elif sort == 'price':
+        products = products.order_by('price', '-created_at')
+    elif sort == '-price':
+        products = products.order_by('-price', '-created_at')
+    elif sort == 'created_at':
+        products = products.order_by('created_at')
+    elif sort == '-created_at':
+        products = products.order_by('-created_at')
+    else:
+        # По умолчанию сортируем по дате создания (новые сначала)
+        products = products.order_by('-created_at')
+    
+    # Пагинация: 10 товаров на странице
+    paginator = Paginator(products, 10)
+    page_number = request.GET.get('page', 1)
+    
+    try:
+        page_obj = paginator.get_page(page_number)
+    except:
+        page_obj = paginator.get_page(1)
+    
+    # Получаем все категории для формы фильтрации
+    categories = Category.objects.all()
+    
+    # Проверяем, это AJAX-запрос?
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Возвращаем JSON для AJAX
+        products_data = []
+        for product in page_obj:
+            products_data.append({
+                'id': product.id,
+                'name': product.name,
+                'price': str(product.price),
+                'description': product.description[:100] + '...' if len(product.description) > 100 else product.description,
+                'image_url': product.image.url if product.image else '',
+                'category': product.category.name if product.category else 'Без категории',
+                'created_at': product.created_at.strftime('%d.%m.%Y %H:%M'),
+                'order_count': product.order_count,
+                'url': f'/product/{product.id}/',
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'products': products_data,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+            'current_page': page_obj.number,
+            'total_pages': paginator.num_pages,
+            'total_count': paginator.count,
+        })
+    
+    # Обычный HTTP-запрос - возвращаем HTML
     context = {
-        'products': products,
+        'products': page_obj,
+        'categories': categories,
         'page_title': 'Каталог товаров',
+        'current_category': category_id,
+        'current_min_price': min_price,
+        'current_max_price': max_price,
+        'current_date_filter': date_filter,
+        'current_sort': sort,
     }
     
-    # Рендерим шаблон с контекстом
     return render(request, 'shop/product_list.html', context)
 
 

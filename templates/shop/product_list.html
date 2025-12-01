@@ -6,61 +6,416 @@
 {% block content %}
     <h1 class="page-title">Каталог товаров</h1>
     
-    <!-- Проверка наличия товаров -->
-    {% if products %}
-        <!-- Отображение количества товаров с использованием фильтра length -->
-        <p class="products-count">Всего товаров: {{ products|length }}</p>
-        
-        <!-- Сетка товаров -->
-        <div class="products-grid">
-            {% for product in products %}
-                <div class="product-card">
-                    <!-- Изображение товара -->
-                    <div class="product-image">
-                        {% if product.image %}
-                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-img">
-                        {% else %}
-                            <!-- Заглушка, если изображение отсутствует -->
-                            <div class="product-placeholder">
-                                <span>Нет изображения</span>
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Информация о товаре -->
-                    <div class="product-info">
-                        <h2 class="product-name">
-                            <a href="{% url 'shop:product_detail' product.id %}">{{ product.name }}</a>
-                        </h2>
-                        
-                        <!-- Цена товара с форматированием (2 знака после запятой) -->
-                        <p class="product-price">
-                            Цена: <strong>{{ product.price|floatformat:2 }} ₽</strong>
-                        </p>
-                        
-                        <!-- Описание товара (обрезано до 100 символов) -->
-                        <p class="product-description">
-                            {{ product.description|truncatechars:100 }}
-                        </p>
-                        
-                        <!-- Дата создания товара с форматированием -->
-                        <p class="product-date">
-                            Добавлен: {{ product.created_at|date:"d.m.Y H:i" }}
-                        </p>
-                        
-                        <!-- Кнопка для перехода к детальной информации -->
-                        <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary">
-                            Подробнее
-                        </a>
-                    </div>
+    <!-- Форма фильтрации и сортировки -->
+    <div class="filters-section">
+        <form id="filter-form" method="GET" class="filter-form">
+            <div class="filter-row">
+                <!-- Фильтр по категории -->
+                <div class="filter-group">
+                    <label for="category">Категория:</label>
+                    <select name="category" id="category" class="filter-select">
+                        <option value="">Все категории</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" {% if current_category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <!-- Сообщение, если товаров нет -->
-        <div class="empty-state">
-            <p class="empty-message">Товары отсутствуют. Каталог пуст.</p>
-        </div>
-    {% endif %}
+                
+                <!-- Фильтр по цене -->
+                <div class="filter-group">
+                    <label for="min_price">Мин. цена:</label>
+                    <input type="number" name="min_price" id="min_price" class="filter-input" 
+                           placeholder="0" value="{{ current_min_price }}" step="0.01" min="0">
+                </div>
+                
+                <div class="filter-group">
+                    <label for="max_price">Макс. цена:</label>
+                    <input type="number" name="max_price" id="max_price" class="filter-input" 
+                           placeholder="∞" value="{{ current_max_price }}" step="0.01" min="0">
+                </div>
+                
+                <!-- Фильтр по дате добавления -->
+                <div class="filter-group">
+                    <label for="date_filter">Дата добавления:</label>
+                    <select name="date_filter" id="date_filter" class="filter-select">
+                        <option value="all" {% if current_date_filter == 'all' %}selected{% endif %}>Все товары</option>
+                        <option value="7days" {% if current_date_filter == '7days' %}selected{% endif %}>За последние 7 дней</option>
+                        <option value="30days" {% if current_date_filter == '30days' %}selected{% endif %}>За последние 30 дней</option>
+                    </select>
+                </div>
+                
+                <!-- Сортировка -->
+                <div class="filter-group">
+                    <label for="sort">Сортировка:</label>
+                    <select name="sort" id="sort" class="filter-select">
+                        <option value="popularity" {% if current_sort == 'popularity' %}selected{% endif %}>По популярности</option>
+                        <option value="price" {% if current_sort == 'price' %}selected{% endif %}>Цена (по возрастанию)</option>
+                        <option value="-price" {% if current_sort == '-price' %}selected{% endif %}>Цена (по убыванию)</option>
+                        <option value="created_at" {% if current_sort == 'created_at' %}selected{% endif %}>Дата (старые сначала)</option>
+                        <option value="-created_at" {% if current_sort == '-created_at' %}selected{% endif %}>Дата (новые сначала)</option>
+                    </select>
+                </div>
+                
+                <!-- Кнопка применения фильтров -->
+                <div class="filter-group">
+                    <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                    <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">Сбросить</a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Информация о результатах -->
+    <div class="results-info">
+        {% if products %}
+            <p class="products-count">
+                Найдено товаров: <strong>{{ products.paginator.count }}</strong>
+                {% if products.paginator.count != products|length %}
+                    (показано {{ products|length }} из {{ products.paginator.count }})
+                {% endif %}
+            </p>
+        {% endif %}
+    </div>
+    
+    <!-- Контейнер для товаров (будет обновляться через AJAX) -->
+    <div id="product-list-container">
+        <!-- Проверка наличия товаров -->
+        {% if products %}
+            <!-- Сетка товаров -->
+            <div class="products-grid" id="products-grid">
+                {% for product in products %}
+                    <div class="product-card">
+                        <!-- Изображение товара -->
+                        <div class="product-image">
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-img">
+                            {% else %}
+                                <!-- Заглушка, если изображение отсутствует -->
+                                <div class="product-placeholder">
+                                    <span>Нет изображения</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Информация о товаре -->
+                        <div class="product-info">
+                            <h2 class="product-name">
+                                <a href="{% url 'shop:product_detail' product.id %}">{{ product.name }}</a>
+                            </h2>
+                            
+                            <!-- Категория товара -->
+                            {% if product.category %}
+                                <p class="product-category">
+                                    Категория: <strong>{{ product.category.name }}</strong>
+                                </p>
+                            {% endif %}
+                            
+                            <!-- Цена товара с форматированием (2 знака после запятой) -->
+                            <p class="product-price">
+                                Цена: <strong>{{ product.price|floatformat:2 }} ₽</strong>
+                            </p>
+                            
+                            <!-- Популярность товара (количество заказов) -->
+                            <p class="product-popularity">
+                                Заказано раз: <strong>{{ product.order_count }}</strong>
+                            </p>
+                            
+                            <!-- Описание товара (обрезано до 100 символов) -->
+                            <p class="product-description">
+                                {{ product.description|truncatechars:100 }}
+                            </p>
+                            
+                            <!-- Дата создания товара с форматированием -->
+                            <p class="product-date">
+                                Добавлен: {{ product.created_at|date:"d.m.Y H:i" }}
+                            </p>
+                            
+                            <!-- Кнопка для перехода к детальной информации -->
+                            <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary">
+                                Подробнее
+                            </a>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Пагинация -->
+            {% if products.has_other_pages %}
+                <div class="pagination" id="pagination">
+                    {% if products.has_previous %}
+                        <a href="?page=1{% if current_category %}&category={{ current_category }}{% endif %}{% if current_min_price %}&min_price={{ current_min_price }}{% endif %}{% if current_max_price %}&max_price={{ current_max_price }}{% endif %}{% if current_date_filter != 'all' %}&date_filter={{ current_date_filter }}{% endif %}{% if current_sort != '-created_at' %}&sort={{ current_sort }}{% endif %}" 
+                           class="pagination-link" data-page="1">Первая</a>
+                        <a href="?page={{ products.previous_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_min_price %}&min_price={{ current_min_price }}{% endif %}{% if current_max_price %}&max_price={{ current_max_price }}{% endif %}{% if current_date_filter != 'all' %}&date_filter={{ current_date_filter }}{% endif %}{% if current_sort != '-created_at' %}&sort={{ current_sort }}{% endif %}" 
+                           class="pagination-link" data-page="{{ products.previous_page_number }}">« Предыдущая</a>
+                    {% endif %}
+                    
+                    <span class="pagination-info">
+                        Страница {{ products.number }} из {{ products.paginator.num_pages }}
+                    </span>
+                    
+                    {% if products.has_next %}
+                        <a href="?page={{ products.next_page_number }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_min_price %}&min_price={{ current_min_price }}{% endif %}{% if current_max_price %}&max_price={{ current_max_price }}{% endif %}{% if current_date_filter != 'all' %}&date_filter={{ current_date_filter }}{% endif %}{% if current_sort != '-created_at' %}&sort={{ current_sort }}{% endif %}" 
+                           class="pagination-link" data-page="{{ products.next_page_number }}">Следующая »</a>
+                        <a href="?page={{ products.paginator.num_pages }}{% if current_category %}&category={{ current_category }}{% endif %}{% if current_min_price %}&min_price={{ current_min_price }}{% endif %}{% if current_max_price %}&max_price={{ current_max_price }}{% endif %}{% if current_date_filter != 'all' %}&date_filter={{ current_date_filter }}{% endif %}{% if current_sort != '-created_at' %}&sort={{ current_sort }}{% endif %}" 
+                           class="pagination-link" data-page="{{ products.paginator.num_pages }}">Последняя</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <!-- Сообщение, если товаров нет -->
+            <div class="empty-state">
+                <p class="empty-message">Товары отсутствуют. Каталог пуст.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Индикатор загрузки (скрыт по умолчанию) -->
+    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+        <p>Загрузка товаров...</p>
+    </div>
 {% endblock %}
 
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+    
+    // Получаем элементы формы и контейнера
+    const filterForm = document.getElementById('filter-form');
+    const productListContainer = document.getElementById('product-list-container');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const resultsInfo = document.querySelector('.results-info');
+    
+    // Функция для обновления URL без перезагрузки страницы
+    function updateURL(params) {
+        const url = new URL(window.location.href);
+        Object.keys(params).forEach(key => {
+            if (params[key]) {
+                url.searchParams.set(key, params[key]);
+            } else {
+                url.searchParams.delete(key);
+            }
+        });
+        url.searchParams.delete('page'); // Сбрасываем страницу при изменении фильтров
+        window.history.pushState({}, '', url);
+    }
+    
+    // Функция для отправки AJAX-запроса
+    function loadProducts(params) {
+        // Показываем индикатор загрузки
+        loadingIndicator.style.display = 'block';
+        productListContainer.style.opacity = '0.5';
+        
+        // Формируем URL с параметрами
+        const url = new URL(window.location.origin + window.location.pathname);
+        Object.keys(params).forEach(key => {
+            if (params[key]) {
+                url.searchParams.set(key, params[key]);
+            }
+        });
+        
+        // Отправляем AJAX-запрос
+        fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки данных');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                // Обновляем список товаров
+                updateProductList(data);
+                // Обновляем информацию о результатах
+                updateResultsInfo(data);
+                // Обновляем пагинацию
+                updatePagination(data, params);
+            } else {
+                throw new Error('Ошибка получения данных');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            // При ошибке перезагружаем страницу обычным способом
+            window.location.href = url.toString();
+        })
+        .finally(() => {
+            // Скрываем индикатор загрузки
+            loadingIndicator.style.display = 'none';
+            productListContainer.style.opacity = '1';
+        });
+    }
+    
+    // Функция для обновления списка товаров
+    function updateProductList(data) {
+        const productsGrid = document.getElementById('products-grid');
+        if (!productsGrid) {
+            // Если контейнера нет, создаём его
+            const container = document.getElementById('product-list-container');
+            container.innerHTML = '<div class="products-grid" id="products-grid"></div>';
+        }
+        
+        const grid = document.getElementById('products-grid');
+        grid.innerHTML = '';
+        
+        if (data.products.length === 0) {
+            grid.innerHTML = '<div class="empty-state"><p class="empty-message">Товары отсутствуют. Каталог пуст.</p></div>';
+            return;
+        }
+        
+        data.products.forEach(product => {
+            const productCard = document.createElement('div');
+            productCard.className = 'product-card';
+            
+            const imageHtml = product.image_url 
+                ? `<img src="${product.image_url}" alt="${product.name}" class="product-img">`
+                : '<div class="product-placeholder"><span>Нет изображения</span></div>';
+            
+            productCard.innerHTML = `
+                <div class="product-image">
+                    ${imageHtml}
+                </div>
+                <div class="product-info">
+                    <h2 class="product-name">
+                        <a href="${product.url}">${escapeHtml(product.name)}</a>
+                    </h2>
+                    ${product.category ? `<p class="product-category">Категория: <strong>${escapeHtml(product.category)}</strong></p>` : ''}
+                    <p class="product-price">Цена: <strong>${product.price} ₽</strong></p>
+                    <p class="product-popularity">Заказано раз: <strong>${product.order_count}</strong></p>
+                    <p class="product-description">${escapeHtml(product.description)}</p>
+                    <p class="product-date">Добавлен: ${product.created_at}</p>
+                    <a href="${product.url}" class="btn btn-primary">Подробнее</a>
+                </div>
+            `;
+            
+            grid.appendChild(productCard);
+        });
+    }
+    
+    // Функция для обновления информации о результатах
+    function updateResultsInfo(data) {
+        if (resultsInfo) {
+            const countText = data.total_count === data.products.length 
+                ? `Найдено товаров: <strong>${data.total_count}</strong>`
+                : `Найдено товаров: <strong>${data.total_count}</strong> (показано ${data.products.length} из ${data.total_count})`;
+            resultsInfo.innerHTML = `<p class="products-count">${countText}</p>`;
+        }
+    }
+    
+    // Функция для обновления пагинации
+    function updatePagination(data, params) {
+        const paginationContainer = document.getElementById('pagination');
+        if (!paginationContainer) {
+            // Если контейнера нет, создаём его
+            const container = document.getElementById('product-list-container');
+            const paginationDiv = document.createElement('div');
+            paginationDiv.className = 'pagination';
+            paginationDiv.id = 'pagination';
+            container.appendChild(paginationDiv);
+        }
+        
+        const pagination = document.getElementById('pagination');
+        if (data.total_pages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+        
+        let paginationHtml = '';
+        
+        // Кнопка "Первая" и "Предыдущая"
+        if (data.current_page > 1) {
+            const firstParams = {...params, page: 1};
+            const prevParams = {...params, page: data.current_page - 1};
+            paginationHtml += `<a href="?${buildQueryString(firstParams)}" class="pagination-link" data-page="1">Первая</a>`;
+            paginationHtml += `<a href="?${buildQueryString(prevParams)}" class="pagination-link" data-page="${data.current_page - 1}">« Предыдущая</a>`;
+        }
+        
+        // Информация о странице
+        paginationHtml += `<span class="pagination-info">Страница ${data.current_page} из ${data.total_pages}</span>`;
+        
+        // Кнопка "Следующая" и "Последняя"
+        if (data.current_page < data.total_pages) {
+            const nextParams = {...params, page: data.current_page + 1};
+            const lastParams = {...params, page: data.total_pages};
+            paginationHtml += `<a href="?${buildQueryString(nextParams)}" class="pagination-link" data-page="${data.current_page + 1}">Следующая »</a>`;
+            paginationHtml += `<a href="?${buildQueryString(lastParams)}" class="pagination-link" data-page="${data.total_pages}">Последняя</a>`;
+        }
+        
+        pagination.innerHTML = paginationHtml;
+        
+        // Добавляем обработчики событий для ссылок пагинации
+        pagination.querySelectorAll('.pagination-link').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.getAttribute('data-page');
+                const params = getFormParams();
+                params.page = page;
+                updateURL(params);
+                loadProducts(params);
+            });
+        });
+    }
+    
+    // Функция для получения параметров формы
+    function getFormParams() {
+        const formData = new FormData(filterForm);
+        const params = {};
+        
+        formData.forEach((value, key) => {
+            if (value) {
+                params[key] = value;
+            }
+        });
+        
+        return params;
+    }
+    
+    // Функция для построения query string
+    function buildQueryString(params) {
+        const parts = [];
+        Object.keys(params).forEach(key => {
+            if (params[key]) {
+                parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`);
+            }
+        });
+        return parts.join('&');
+    }
+    
+    // Функция для экранирования HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Обработчик отправки формы
+    if (filterForm) {
+        filterForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const params = getFormParams();
+            updateURL(params);
+            loadProducts(params);
+        });
+        
+        // Обработчик изменения полей формы (опционально - для автоматической фильтрации)
+        // Раскомментируйте, если хотите автоматическую фильтрацию при изменении полей
+        /*
+        filterForm.querySelectorAll('select, input').forEach(element => {
+            element.addEventListener('change', function() {
+                const params = getFormParams();
+                updateURL(params);
+                loadProducts(params);
+            });
+        });
+        */
+    }
+})();
+</script>
+{% endblock %}

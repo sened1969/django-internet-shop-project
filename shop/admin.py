@@ -16,8 +16,8 @@ from .models import (
 class CustomUserAdmin(BaseUserAdmin):
     """Административный интерфейс для кастомной модели пользователя."""
     
-    list_display = ('email', 'phone_number', 'is_active', 'is_staff', 'date_joined')
-    list_filter = ('is_active', 'is_staff', 'is_superuser', 'date_joined')
+    list_display = ('email', 'phone_number', 'role', 'is_active', 'is_staff', 'date_joined')
+    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     search_fields = ('email', 'phone_number')
     ordering = ('-date_joined',)
     
@@ -26,8 +26,8 @@ class CustomUserAdmin(BaseUserAdmin):
         (_('Персональная информация'), {
             'fields': ('phone_number', 'address')
         }),
-        (_('Права доступа'), {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+        (_('Роль и права доступа'), {
+            'fields': ('role', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
         (_('Важные даты'), {
             'fields': ('last_login', 'date_joined')

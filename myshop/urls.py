@@ -18,11 +18,35 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
+
+# Настройка Swagger документации
+schema_view = get_schema_view(
+    openapi.Info(
+        title="Books API",
+        default_version='v1',
+        description="REST API для управления книгами, издательствами, магазинами и отзывами",
+        terms_of_service="https://www.google.com/policies/terms/",
+        contact=openapi.Contact(email="contact@booksapi.local"),
+        license=openapi.License(name="BSD License"),
+    ),
+    public=True,
+    permission_classes=(permissions.AllowAny,),
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('shop.urls')),  # Подключаем URLs приложения shop
-    path('books/', include('books.urls')),  # Подключаем URLs приложения books
+    path('books/', include('books.urls')),  # Подключаем URLs приложения books (веб-интерфейс)
+    path('api/', include('books.api.urls')),  # Подключаем REST API
+    path('api/auth/', include('rest_framework.urls')),  # Сессионная аутентификация для браузера
+    
+    # Swagger документация
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('swagger.json', schema_view.without_ui(cache_timeout=0), name='schema-json'),
 ]
 
 # Подключение медиа-файлов в режиме разработки

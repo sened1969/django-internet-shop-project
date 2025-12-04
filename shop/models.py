@@ -76,6 +76,20 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         help_text='Дата и время регистрации пользователя'
     )
     
+    ROLE_CHOICES = [
+        ('admin', 'Администратор'),
+        ('manager', 'Менеджер'),
+        ('user', 'Пользователь'),
+    ]
+    
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='user',
+        verbose_name='Роль',
+        help_text='Роль пользователя в системе'
+    )
+    
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email'

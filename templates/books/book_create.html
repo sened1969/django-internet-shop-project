@@ -1,0 +1,95 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:book_list' %}" class="btn btn-secondary">← Назад к списку</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div class="alert alert-error">
+                <strong>Ошибка!</strong> Пожалуйста, исправьте ошибки в форме.
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+            {{ form.title }}
+            {% if form.title.help_text %}
+                <small class="help-text">{{ form.title.help_text }}</small>
+            {% endif %}
+            {% if form.title.errors %}
+                <div class="form-errors">{{ form.title.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.author.id_for_label }}">{{ form.author.label }}</label>
+            {{ form.author }}
+            {% if form.author.help_text %}
+                <small class="help-text">{{ form.author.help_text }}</small>
+            {% endif %}
+            {% if form.author.errors %}
+                <div class="form-errors">{{ form.author.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.publisher.id_for_label }}">{{ form.publisher.label }}</label>
+            {{ form.publisher }}
+            {% if form.publisher.help_text %}
+                <small class="help-text">{{ form.publisher.help_text }}</small>
+            {% endif %}
+            {% if form.publisher.errors %}
+                <div class="form-errors">{{ form.publisher.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.published_date.id_for_label }}">{{ form.published_date.label }}</label>
+            {{ form.published_date }}
+            {% if form.published_date.help_text %}
+                <small class="help-text">{{ form.published_date.help_text }}</small>
+            {% endif %}
+            {% if form.published_date.errors %}
+                <div class="form-errors">{{ form.published_date.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.help_text %}
+                <small class="help-text">{{ form.description.help_text }}</small>
+            {% endif %}
+            {% if form.description.errors %}
+                <div class="form-errors">{{ form.description.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.stores.id_for_label }}">{{ form.stores.label }}</label>
+            {{ form.stores }}
+            {% if form.stores.help_text %}
+                <small class="help-text">{{ form.stores.help_text }}</small>
+            {% endif %}
+            {% if form.stores.errors %}
+                <div class="form-errors">{{ form.stores.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            <a href="{% url 'books:book_list' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

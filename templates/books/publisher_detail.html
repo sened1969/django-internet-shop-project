@@ -1,0 +1,80 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ publisher.name }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:publisher_list' %}" class="btn btn-secondary">← Назад к списку</a>
+    <a href="{% url 'books:publisher_update' publisher.pk %}" class="btn btn-success">✏️ Редактировать</a>
+    <a href="{% url 'books:publisher_delete' publisher.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+</div>
+
+<div class="detail-section">
+    <h2>Основная информация</h2>
+    
+    <div class="detail-field">
+        <label>Название:</label>
+        <p>{{ publisher.name }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Страна:</label>
+        <p>{{ publisher.country }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Количество книг:</label>
+        <p>{{ books_count }}</p>
+    </div>
+    
+    {% if avg_rating %}
+        <div class="detail-field">
+            <label>Средняя оценка книг:</label>
+            <p>
+                <span class="rating">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= avg_rating|floatformat:0|add:"0" %}
+                            ★
+                        {% else %}
+                            <span class="rating-empty">☆</span>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+                {{ avg_rating|floatformat:2 }} / 5.00
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="detail-section">
+    <h2>Книги издательства</h2>
+    
+    {% if books %}
+        <div class="list-group">
+            {% for book in books %}
+                <div class="list-group-item">
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">
+                            <a href="{% url 'books:book_detail' book.pk %}">{{ book.title }}</a>
+                        </h4>
+                        <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                            <strong>Автор:</strong> {{ book.author }}
+                        </p>
+                        <p style="color: #6c757d;">
+                            <strong>Дата публикации:</strong> {{ book.published_date|date:"d.m.Y" }}
+                        </p>
+                    </div>
+                    <div class="actions">
+                        <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-primary btn-sm">Просмотр</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>У этого издательства пока нет книг.</p>
+    {% endif %}
+</div>
+{% endblock %}
+

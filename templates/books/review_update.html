@@ -1,0 +1,63 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:review_detail' review.pk %}" class="btn btn-secondary">← Назад</a>
+    <a href="{% url 'books:review_list' %}" class="btn btn-secondary">К списку отзывов</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div class="alert alert-error">
+                <strong>Ошибка!</strong> Пожалуйста, исправьте ошибки в форме.
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="{{ form.book.id_for_label }}">{{ form.book.label }}</label>
+            {{ form.book }}
+            {% if form.book.help_text %}
+                <small class="help-text">{{ form.book.help_text }}</small>
+            {% endif %}
+            {% if form.book.errors %}
+                <div class="form-errors">{{ form.book.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.rating.id_for_label }}">{{ form.rating.label }}</label>
+            {{ form.rating }}
+            {% if form.rating.help_text %}
+                <small class="help-text">{{ form.rating.help_text }}</small>
+            {% endif %}
+            {% if form.rating.errors %}
+                <div class="form-errors">{{ form.rating.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.text.id_for_label }}">{{ form.text.label }}</label>
+            {{ form.text }}
+            {% if form.text.help_text %}
+                <small class="help-text">{{ form.text.help_text }}</small>
+            {% endif %}
+            {% if form.text.errors %}
+                <div class="form-errors">{{ form.text.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn btn-success">💾 Обновить</button>
+            <a href="{% url 'books:review_detail' review.pk %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

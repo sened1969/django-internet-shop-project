@@ -1,0 +1,49 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">Отзыв на "{{ review.book.title }}"</h1>
+
+<div class="actions">
+    <a href="{% url 'books:review_list' %}" class="btn btn-secondary">← Назад к списку</a>
+    <a href="{% url 'books:review_update' review.pk %}" class="btn btn-success">✏️ Редактировать</a>
+    <a href="{% url 'books:review_delete' review.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+</div>
+
+<div class="detail-section">
+    <h2>Информация об отзыве</h2>
+    
+    <div class="detail-field">
+        <label>Книга:</label>
+        <p><a href="{% url 'books:book_detail' review.book.pk %}">{{ review.book.title }}</a> - {{ review.book.author }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Оценка:</label>
+        <p>
+            <span class="rating">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.rating %}
+                        ★
+                    {% else %}
+                        <span class="rating-empty">☆</span>
+                    {% endif %}
+                {% endfor %}
+            </span>
+            {{ review.rating }}/5
+        </p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Дата создания:</label>
+        <p>{{ review.created_at|date:"d.m.Y H:i" }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Текст отзыва:</label>
+        <p>{{ review.text|linebreaks }}</p>
+    </div>
+</div>
+{% endblock %}
+

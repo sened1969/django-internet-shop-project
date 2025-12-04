@@ -1,0 +1,42 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="card">
+    <div class="card-header">
+        ⚠️ Подтверждение удаления
+    </div>
+    
+    <div class="card-body">
+        <p><strong>Вы уверены, что хотите удалить издательство?</strong></p>
+        
+        <div class="detail-section" style="margin-top: 1rem;">
+            <div class="detail-field">
+                <label>Название:</label>
+                <p>{{ publisher.name }}</p>
+            </div>
+            
+            <div class="detail-field">
+                <label>Страна:</label>
+                <p>{{ publisher.country }}</p>
+            </div>
+        </div>
+        
+        <div class="alert alert-error" style="margin-top: 1rem;">
+            <strong>Внимание!</strong> Это действие нельзя отменить. Все связанные книги также будут удалены.
+        </div>
+    </div>
+    
+    <div class="card-footer">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">🗑️ Да, удалить</button>
+        </form>
+        <a href="{% url 'books:publisher_detail' publisher.pk %}" class="btn btn-secondary">Отмена</a>
+    </div>
+</div>
+{% endblock %}
+

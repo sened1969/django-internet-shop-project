@@ -1,0 +1,230 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:book_list' %}" class="btn btn-secondary">← Назад к списку книг</a>
+</div>
+
+<!-- Общая статистика -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Всего книг</h3>
+        <div class="stat-value">{{ total_books }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Всего отзывов</h3>
+        <div class="stat-value">{{ total_reviews }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <h3>Средняя оценка</h3>
+        <div class="stat-value">
+            {% if avg_rating_all %}
+                <span class="rating">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= avg_rating_all|floatformat:0|add:"0" %}
+                            ★
+                        {% else %}
+                            <span class="rating-empty">☆</span>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+                {{ avg_rating_all|floatformat:2 }}
+            {% else %}
+                Нет данных
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Статистика по издательствам -->
+<div class="detail-section">
+    <h2>Статистика по издательствам</h2>
+    
+    {% if publishers_stats %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Издательство</th>
+                    <th>Страна</th>
+                    <th>Количество книг</th>
+                    <th>Средняя оценка</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for publisher in publishers_stats %}
+                    <tr>
+                        <td><a href="{% url 'books:publisher_detail' publisher.pk %}">{{ publisher.name }}</a></td>
+                        <td>{{ publisher.country }}</td>
+                        <td>{{ publisher.books_count }}</td>
+                        <td>
+                            {% if publisher.avg_rating %}
+                                <span class="rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= publisher.avg_rating|floatformat:0|add:"0" %}
+                                            ★
+                                        {% else %}
+                                            <span class="rating-empty">☆</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                                {{ publisher.avg_rating|floatformat:2 }}
+                            {% else %}
+                                Нет оценок
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Нет данных об издательствах.</p>
+    {% endif %}
+</div>
+
+<!-- Статистика по магазинам -->
+<div class="detail-section">
+    <h2>Статистика по магазинам</h2>
+    
+    {% if stores_stats %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Магазин</th>
+                    <th>Город</th>
+                    <th>Количество книг</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for store in stores_stats %}
+                    <tr>
+                        <td><a href="{% url 'books:store_detail' store.pk %}">{{ store.name }}</a></td>
+                        <td>{{ store.city }}</td>
+                        <td>{{ store.books_count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Нет данных о магазинах.</p>
+    {% endif %}
+</div>
+
+<!-- Топ книги по рейтингу -->
+<div class="detail-section">
+    <h2>Топ книги по рейтингу (минимум 3 отзыва)</h2>
+    
+    {% if top_rated_books %}
+        <div class="list-group">
+            {% for book in top_rated_books %}
+                <div class="list-group-item">
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">
+                            <a href="{% url 'books:book_detail' book.pk %}">{{ book.title }}</a>
+                        </h4>
+                        <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                            <strong>Автор:</strong> {{ book.author }}
+                        </p>
+                        <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                            <strong>Средняя оценка:</strong> 
+                            <span class="rating">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= book.avg_rating|floatformat:0|add:"0" %}
+                                        ★
+                                    {% else %}
+                                        <span class="rating-empty">☆</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </span>
+                            {{ book.avg_rating|floatformat:2 }} / 5.00
+                        </p>
+                        <p style="color: #6c757d;">
+                            <strong>Отзывов:</strong> {{ book.reviews_count }}
+                        </p>
+                    </div>
+                    <div class="actions">
+                        <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-primary btn-sm">Просмотр</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Нет книг с достаточным количеством отзывов.</p>
+    {% endif %}
+</div>
+
+<!-- Книги с наибольшим количеством отзывов -->
+<div class="detail-section">
+    <h2>Книги с наибольшим количеством отзывов</h2>
+    
+    {% if most_reviewed_books %}
+        <div class="list-group">
+            {% for book in most_reviewed_books %}
+                <div class="list-group-item">
+                    <div>
+                        <h4 style="margin-bottom: 0.5rem;">
+                            <a href="{% url 'books:book_detail' book.pk %}">{{ book.title }}</a>
+                        </h4>
+                        <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                            <strong>Автор:</strong> {{ book.author }}
+                        </p>
+                        <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                            <strong>Количество отзывов:</strong> {{ book.reviews_count }}
+                        </p>
+                        {% if book.avg_rating %}
+                            <p style="color: #6c757d;">
+                                <strong>Средняя оценка:</strong> 
+                                <span class="rating">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= book.avg_rating|floatformat:0|add:"0" %}
+                                            ★
+                                        {% else %}
+                                            <span class="rating-empty">☆</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </span>
+                                {{ book.avg_rating|floatformat:2 }} / 5.00
+                            </p>
+                        {% endif %}
+                    </div>
+                    <div class="actions">
+                        <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-primary btn-sm">Просмотр</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Нет книг с отзывами.</p>
+    {% endif %}
+</div>
+
+<!-- Статистика по годам публикации -->
+{% if books_by_year %}
+    <div class="detail-section">
+        <h2>Статистика по годам публикации</h2>
+        
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Год</th>
+                    <th>Количество книг</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in books_by_year %}
+                    <tr>
+                        <td>{{ item.published_date__year }}</td>
+                        <td>{{ item.count }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+{% endblock %}
+

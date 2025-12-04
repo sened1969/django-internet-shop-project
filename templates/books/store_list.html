@@ -1,0 +1,58 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:store_create' %}" class="btn btn-primary">➕ Добавить магазин</a>
+</div>
+
+<!-- Фильтры и поиск -->
+{% if stores %}
+    <div class="filters">
+        <form method="get" class="search-form">
+            <input type="text" name="search" placeholder="Поиск по названию..." 
+                   value="{{ current_search }}" class="form-control">
+            <input type="text" name="city" placeholder="Фильтр по городу..." 
+                   value="{{ current_city }}" class="form-control">
+            <button type="submit" class="btn btn-primary">🔍 Найти</button>
+            {% if current_search or current_city %}
+                <a href="{% url 'books:store_list' %}" class="btn btn-secondary">✖️ Сбросить</a>
+            {% endif %}
+        </form>
+    </div>
+{% endif %}
+
+<!-- Список магазинов -->
+{% if stores %}
+    <div class="list-group">
+        {% for store in stores %}
+            <div class="list-group-item">
+                <div>
+                    <h3 style="margin-bottom: 0.5rem;">
+                        <a href="{% url 'books:store_detail' store.pk %}">{{ store.name }}</a>
+                    </h3>
+                    <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                        <strong>Город:</strong> {{ store.city }}
+                    </p>
+                    <p style="color: #6c757d;">
+                        <strong>Книг:</strong> {{ store.books_count }}
+                    </p>
+                </div>
+                <div class="actions">
+                    <a href="{% url 'books:store_detail' store.pk %}" class="btn btn-primary btn-sm">👁️ Просмотр</a>
+                    <a href="{% url 'books:store_update' store.pk %}" class="btn btn-success btn-sm">✏️ Редактировать</a>
+                    <a href="{% url 'books:store_delete' store.pk %}" class="btn btn-danger btn-sm">🗑️ Удалить</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <p>Магазины не найдены. <a href="{% url 'books:store_create' %}">Создайте первый магазин</a></p>
+    </div>
+{% endif %}
+{% endblock %}
+

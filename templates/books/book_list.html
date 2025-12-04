@@ -1,0 +1,132 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:book_create' %}" class="btn btn-primary">➕ Добавить книгу</a>
+    <a href="{% url 'books:analytics' %}" class="btn btn-secondary">📊 Аналитика</a>
+</div>
+
+<!-- Фильтры и поиск -->
+<div class="filters">
+    <h3>Фильтры и поиск</h3>
+    
+    <form method="get" class="search-form">
+        <input type="text" name="search" placeholder="Поиск по названию или автору..." 
+               value="{{ current_search }}" class="form-control">
+        <button type="submit" class="btn btn-primary">🔍 Найти</button>
+        {% if current_search %}
+            <a href="{% url 'books:book_list' %}" class="btn btn-secondary">✖️ Сбросить</a>
+        {% endif %}
+    </form>
+    
+    <form method="get" style="margin-top: 1rem;">
+        <div class="filter-group">
+            <label>Издательство:</label>
+            <select name="publisher" class="form-control" onchange="this.form.submit()">
+                <option value="">Все издательства</option>
+                {% for publisher in publishers %}
+                    <option value="{{ publisher.id }}" {% if current_publisher == publisher.id|stringformat:"s" %}selected{% endif %}>
+                        {{ publisher.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label>Год публикации:</label>
+            <input type="number" name="year" placeholder="Год" value="{{ current_year }}" 
+                   class="form-control" style="width: 120px;" onchange="this.form.submit()">
+        </div>
+        
+        <div class="filter-group">
+            <label>Сортировка:</label>
+            <select name="sort" class="form-control" onchange="this.form.submit()">
+                <option value="-published_date" {% if current_sort == '-published_date' %}selected{% endif %}>Дата публикации (новые)</option>
+                <option value="published_date" {% if current_sort == 'published_date' %}selected{% endif %}>Дата публикации (старые)</option>
+                <option value="title" {% if current_sort == 'title' %}selected{% endif %}>Название (А-Я)</option>
+                <option value="-title" {% if current_sort == '-title' %}selected{% endif %}>Название (Я-А)</option>
+                <option value="author" {% if current_sort == 'author' %}selected{% endif %}>Автор (А-Я)</option>
+                <option value="-author" {% if current_sort == '-author' %}selected{% endif %}>Автор (Я-А)</option>
+            </select>
+        </div>
+        
+        {% if current_publisher or current_year %}
+            <a href="{% url 'books:book_list' %}" class="btn btn-secondary" style="margin-top: 1.5rem;">Сбросить фильтры</a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Список книг -->
+{% if books %}
+    <p style="margin-bottom: 1rem; color: #6c757d;">
+        Найдено книг: {{ books.paginator.count }}
+    </p>
+    
+    <div class="list-group">
+        {% for book in books %}
+            <div class="list-group-item">
+                <div>
+                    <h3 style="margin-bottom: 0.5rem;">
+                        <a href="{% url 'books:book_detail' book.pk %}">{{ book.title }}</a>
+                    </h3>
+                    <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                        <strong>Автор:</strong> {{ book.author }}
+                    </p>
+                    <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                        <strong>Издательство:</strong> {{ book.publisher.name }}
+                    </p>
+                    <p style="color: #6c757d; margin-bottom: 0.25rem;">
+                        <strong>Дата публикации:</strong> {{ book.published_date|date:"d.m.Y" }}
+                    </p>
+                    {% if book.reviews.count > 0 %}
+                        {% with avg_rating=book.reviews.all|length %}
+                            {% with rating_sum=book.reviews.all|length %}
+                                {% for review in book.reviews.all %}
+                                    {% if forloop.first %}
+                                        <p style="color: #6c757d;">
+                                            <strong>Отзывов:</strong> {{ book.reviews.count }}
+                                        </p>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
+                        {% endwith %}
+                    {% endif %}
+                </div>
+                <div class="actions">
+                    <a href="{% url 'books:book_detail' book.pk %}" class="btn btn-primary btn-sm">👁️ Просмотр</a>
+                    <a href="{% url 'books:book_update' book.pk %}" class="btn btn-success btn-sm">✏️ Редактировать</a>
+                    <a href="{% url 'books:book_delete' book.pk %}" class="btn btn-danger btn-sm">🗑️ Удалить</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Пагинация -->
+    {% if books.has_other_pages %}
+        <div class="pagination">
+            {% if books.has_previous %}
+                <a href="?page=1{% if current_publisher %}&publisher={{ current_publisher }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">« Первая</a>
+                <a href="?page={{ books.previous_page_number }}{% if current_publisher %}&publisher={{ current_publisher }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">‹ Предыдущая</a>
+            {% endif %}
+            
+            <span class="current">
+                Страница {{ books.number }} из {{ books.paginator.num_pages }}
+            </span>
+            
+            {% if books.has_next %}
+                <a href="?page={{ books.next_page_number }}{% if current_publisher %}&publisher={{ current_publisher }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Следующая ›</a>
+                <a href="?page={{ books.paginator.num_pages }}{% if current_publisher %}&publisher={{ current_publisher }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}{% if current_sort %}&sort={{ current_sort }}{% endif %}">Последняя »</a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% else %}
+    <div class="card">
+        <p>Книги не найдены. <a href="{% url 'books:book_create' %}">Создайте первую книгу</a></p>
+    </div>
+{% endif %}
+{% endblock %}
+

@@ -22,6 +22,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('shop.urls')),  # Подключаем URLs приложения shop
+    path('books/', include('books.urls')),  # Подключаем URLs приложения books
 ]
 
 # Подключение медиа-файлов в режиме разработки

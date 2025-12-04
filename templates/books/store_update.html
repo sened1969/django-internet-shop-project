@@ -1,0 +1,52 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:store_detail' store.pk %}" class="btn btn-secondary">← Назад</a>
+    <a href="{% url 'books:store_list' %}" class="btn btn-secondary">К списку магазинов</a>
+</div>
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        
+        {% if form.errors %}
+            <div class="alert alert-error">
+                <strong>Ошибка!</strong> Пожалуйста, исправьте ошибки в форме.
+            </div>
+        {% endif %}
+        
+        <div class="form-group">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.help_text %}
+                <small class="help-text">{{ form.name.help_text }}</small>
+            {% endif %}
+            {% if form.name.errors %}
+                <div class="form-errors">{{ form.name.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="{{ form.city.id_for_label }}">{{ form.city.label }}</label>
+            {{ form.city }}
+            {% if form.city.help_text %}
+                <small class="help-text">{{ form.city.help_text }}</small>
+            {% endif %}
+            {% if form.city.errors %}
+                <div class="form-errors">{{ form.city.errors }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="actions">
+            <button type="submit" class="btn btn-success">💾 Обновить</button>
+            <a href="{% url 'books:store_detail' store.pk %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

@@ -1,0 +1,53 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ page_title }}</h1>
+
+<div class="card">
+    <div class="card-header">
+        ⚠️ Подтверждение удаления
+    </div>
+    
+    <div class="card-body">
+        <p><strong>Вы уверены, что хотите удалить отзыв?</strong></p>
+        
+        <div class="detail-section" style="margin-top: 1rem;">
+            <div class="detail-field">
+                <label>Книга:</label>
+                <p>{{ review.book.title }}</p>
+            </div>
+            
+            <div class="detail-field">
+                <label>Оценка:</label>
+                <p>
+                    <span class="rating">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= review.rating %}
+                                ★
+                            {% else %}
+                                <span class="rating-empty">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    {{ review.rating }}/5
+                </p>
+            </div>
+        </div>
+        
+        <div class="alert alert-error" style="margin-top: 1rem;">
+            <strong>Внимание!</strong> Это действие нельзя отменить.
+        </div>
+    </div>
+    
+    <div class="card-footer">
+        <form method="post" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">🗑️ Да, удалить</button>
+        </form>
+        <a href="{% url 'books:review_detail' review.pk %}" class="btn btn-secondary">Отмена</a>
+    </div>
+</div>
+{% endblock %}
+

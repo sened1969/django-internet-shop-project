@@ -1,0 +1,121 @@
+{% extends 'books/base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<h1 class="page-title">{{ book.title }}</h1>
+
+<div class="actions">
+    <a href="{% url 'books:book_list' %}" class="btn btn-secondary">← Назад к списку</a>
+    <a href="{% url 'books:book_update' book.pk %}" class="btn btn-success">✏️ Редактировать</a>
+    <a href="{% url 'books:book_delete' book.pk %}" class="btn btn-danger">🗑️ Удалить</a>
+    <a href="{% url 'books:review_create' %}?book={{ book.pk }}" class="btn btn-primary">➕ Добавить отзыв</a>
+</div>
+
+<div class="detail-section">
+    <h2>Основная информация</h2>
+    
+    <div class="detail-field">
+        <label>Название:</label>
+        <p>{{ book.title }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Автор:</label>
+        <p>{{ book.author }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Издательство:</label>
+        <p><a href="{% url 'books:publisher_detail' book.publisher.pk %}">{{ book.publisher.name }}</a> ({{ book.publisher.country }})</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Дата публикации:</label>
+        <p>{{ book.published_date|date:"d.m.Y" }}</p>
+    </div>
+    
+    <div class="detail-field">
+        <label>Описание:</label>
+        <p>{{ book.description|linebreaks }}</p>
+    </div>
+</div>
+
+<div class="detail-section">
+    <h2>Магазины</h2>
+    {% if book.stores.all %}
+        <ul>
+            {% for store in book.stores.all %}
+                <li><a href="{% url 'books:store_detail' store.pk %}">{{ store.name }}</a> ({{ store.city }})</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>Книга не продается ни в одном магазине.</p>
+    {% endif %}
+</div>
+
+<div class="detail-section">
+    <h2>Отзывы и рейтинг</h2>
+    
+    {% if reviews_count > 0 %}
+        <p><strong>Количество отзывов:</strong> {{ reviews_count }}</p>
+        {% if avg_rating %}
+            <p><strong>Средняя оценка:</strong> 
+                <span class="rating">
+                    {% with avg_int=avg_rating|floatformat:0 %}
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= avg_int|add:"0" %}
+                                ★
+                            {% else %}
+                                <span class="rating-empty">☆</span>
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                </span>
+                {{ avg_rating|floatformat:2 }} / 5.00
+            </p>
+        {% endif %}
+        
+        <div style="margin-top: 1.5rem;">
+            <h3>Список отзывов:</h3>
+            {% for review in book.reviews.all %}
+                <div class="card" style="margin-top: 1rem;">
+                    <div class="card-header">
+                        Оценка: 
+                        <span class="rating">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    ★
+                                {% else %}
+                                    <span class="rating-empty">☆</span>
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                        {{ review.rating }}/5
+                    </div>
+                    <div class="card-body">
+                        <p>{{ review.text|linebreaks }}</p>
+                    </div>
+                    <div class="card-footer">
+                        <small>Дата: {{ review.created_at|date:"d.m.Y H:i" }}</small>
+                        <div class="actions" style="margin-top: 0.5rem;">
+                            <a href="{% url 'books:review_detail' review.pk %}" class="btn btn-primary btn-sm">Просмотр</a>
+                            <a href="{% url 'books:review_update' review.pk %}" class="btn btn-success btn-sm">Редактировать</a>
+                            <a href="{% url 'books:review_delete' review.pk %}" class="btn btn-danger btn-sm">Удалить</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            
+            {% if book.reviews.count > 10 %}
+                <p style="margin-top: 1rem;">
+                    <a href="{% url 'books:review_list' %}?book={{ book.pk }}">Показать все отзывы ({{ book.reviews.count }})</a>
+                </p>
+            {% endif %}
+        </div>
+    {% else %}
+        <p>На эту книгу пока нет отзывов. <a href="{% url 'books:review_create' %}?book={{ book.pk }}">Оставьте первый отзыв</a></p>
+    {% endif %}
+</div>
+{% endblock %}
+

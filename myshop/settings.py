@@ -50,9 +50,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',  # Django REST Framework
     'rest_framework_simplejwt',  # JWT аутентификация
-    'drf_yasg',  # Swagger документация
+    'drf_spectacular',  # Swagger документация (drf-spectacular)
+    'drf_spectacular_sidecar',  # Статические файлы для Swagger UI
     'shop',  # Наше приложение интернет-магазина
     'books',  # Приложение для работы с книгами (Тема 20)
+    'api_demo',  # Демо-приложение для демонстрации APIView классов (Тема 24)
 ]
 
 MIDDLEWARE = [
@@ -231,6 +233,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',  # Схема для Swagger
 }
 
 # JWT настройки
@@ -242,14 +245,24 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
-# Swagger настройки
-SWAGGER_SETTINGS = {
-    'SECURITY_DEFINITIONS': {
-        'Bearer': {
-            'type': 'apiKey',
-            'name': 'Authorization',
-            'in': 'header'
-        }
-    }
+# Настройки drf-spectacular (Swagger документация)
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Books API',
+    'DESCRIPTION': 'REST API для управления книгами, издательствами, магазинами и отзывами. '
+                   'Документация автоматически генерируется на основе кода.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'SWAGGER_UI_DIST': 'SIDECAR',  # Использовать встроенные файлы Swagger UI
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'displayOperationId': False,
+        'defaultModelsExpandDepth': 1,
+        'defaultModelExpandDepth': 1,
+        'docExpansion': 'list',
+        'filter': True,
+    },
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': '/api/',
 }
 

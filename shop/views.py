@@ -769,4 +769,3 @@ def view_cart(request):
         'page_title': 'Корзина покупок',
     }
     return render(request, 'shop/cart.html', context)
-

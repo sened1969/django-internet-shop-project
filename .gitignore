@@ -41,6 +41,12 @@ venv/
 env/
 ENV/
 .venv
+shop_venv/
+**/shop_venv/
+**/*venv/
+
+# Pip output files
+=*.0
 
 # IDE
 .vscode/

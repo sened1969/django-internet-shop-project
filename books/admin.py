@@ -5,7 +5,31 @@
 """
 from django.contrib import admin
 from django.db.models import Count, Avg
-from .models import Publisher, Book, Store, Review
+from .models import Publisher, Book, Store, Review, Category
+
+# Примечание: Модели OAuth 2.0 (Application, AccessToken, RefreshToken, Grant)
+# автоматически регистрируются в админке библиотекой oauth2_provider
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    """
+    Класс для настройки отображения модели Category в админ-панели.
+    """
+    list_display = ('name', 'description', 'books_count')
+    list_filter = ('name',)
+    search_fields = ('name', 'description')
+    
+    fieldsets = (
+        ('Основная информация', {
+            'fields': ('name', 'description')
+        }),
+    )
+    
+    def books_count(self, obj):
+        """Возвращает количество книг в категории."""
+        return obj.books.count()
+    books_count.short_description = 'Количество книг'
 
 
 @admin.register(Publisher)
@@ -42,15 +66,15 @@ class BookAdmin(admin.ModelAdmin):
     """
     Класс для настройки отображения модели Book в админ-панели.
     """
-    list_display = ('title', 'author', 'publisher', 'published_date', 'reviews_count', 'avg_rating')
-    list_filter = ('publisher', 'published_date')
+    list_display = ('title', 'author', 'publisher', 'category', 'published_date', 'reviews_count', 'avg_rating')
+    list_filter = ('publisher', 'category', 'published_date')
     search_fields = ('title', 'author', 'description')
     readonly_fields = ('published_date',)
     inlines = [ReviewInline]
     
     fieldsets = (
         ('Основная информация', {
-            'fields': ('title', 'author', 'publisher', 'published_date')
+            'fields': ('title', 'author', 'publisher', 'category', 'published_date')
         }),
         ('Описание', {
             'fields': ('description',)
@@ -123,3 +147,7 @@ class ReviewAdmin(admin.ModelAdmin):
             return obj.text[:50] + '...'
         return obj.text
     text_preview.short_description = 'Предпросмотр отзыва'
+
+# Примечание: Модели OAuth 2.0 (Application, AccessToken, RefreshToken, Grant)
+# автоматически регистрируются в админке библиотекой oauth2_provider
+# и доступны в разделе "OAuth2 PROVIDER" административной панели

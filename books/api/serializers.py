@@ -4,7 +4,7 @@
 Преобразуют модели Django в JSON формат и обратно.
 """
 from rest_framework import serializers
-from books.models import Book, Publisher, Store, Review
+from books.models import Book, Publisher, Store, Review, Category
 
 
 class PublisherSerializer(serializers.ModelSerializer):
@@ -45,6 +45,25 @@ class StoreSerializer(serializers.ModelSerializer):
         }
 
 
+class CategorySerializer(serializers.ModelSerializer):
+    """Сериализатор для модели Category."""
+    
+    books_count = serializers.IntegerField(source='books.count', read_only=True)
+    
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'description', 'books_count']
+        read_only_fields = ['id', 'books_count']
+        extra_kwargs = {
+            'name': {
+                'help_text': 'Название категории книг (максимум 100 символов, уникальное)'
+            },
+            'description': {
+                'help_text': 'Описание категории (необязательно)'
+            },
+        }
+
+
 class ReviewSerializer(serializers.ModelSerializer):
     """Сериализатор для модели Review."""
     
@@ -72,6 +91,7 @@ class BookSerializer(serializers.ModelSerializer):
     
     publisher_name = serializers.CharField(source='publisher.name', read_only=True)
     publisher_country = serializers.CharField(source='publisher.country', read_only=True)
+    category_name = serializers.SerializerMethodField()
     stores = StoreSerializer(many=True, read_only=True)
     store_ids = serializers.PrimaryKeyRelatedField(
         many=True,
@@ -88,9 +108,10 @@ class BookSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'author', 'published_date', 'description',
             'publisher', 'publisher_name', 'publisher_country',
+            'category', 'category_name',
             'stores', 'store_ids', 'reviews_count', 'avg_rating'
         ]
-        read_only_fields = ['id', 'publisher_name', 'publisher_country', 'stores', 'reviews_count', 'avg_rating']
+        read_only_fields = ['id', 'publisher_name', 'publisher_country', 'category_name', 'stores', 'reviews_count', 'avg_rating']
         extra_kwargs = {
             'title': {
                 'help_text': 'Название книги (максимум 200 символов)'
@@ -107,10 +128,17 @@ class BookSerializer(serializers.ModelSerializer):
             'publisher': {
                 'help_text': 'ID издательства, опубликовавшего книгу'
             },
+            'category': {
+                'help_text': 'ID категории книги'
+            },
             'store_ids': {
                 'help_text': 'Список ID магазинов, где продаётся книга (для записи)'
             },
         }
+    
+    def get_category_name(self, obj):
+        """Возвращает название категории книги или None, если категория не задана."""
+        return obj.category.name if obj.category else None
     
     def get_avg_rating(self, obj):
         """Вычисляет среднюю оценку книги."""
@@ -126,4 +154,23 @@ class BookDetailSerializer(BookSerializer):
     
     class Meta(BookSerializer.Meta):
         fields = BookSerializer.Meta.fields + ['reviews']
+
+
+class CategoryDetailSerializer(serializers.ModelSerializer):
+    """Сериализатор для детального представления категории с вложенными книгами."""
+    
+    books = BookSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'description', 'books']
+        read_only_fields = ['id']
+        extra_kwargs = {
+            'name': {
+                'help_text': 'Название категории книг (максимум 100 символов, уникальное)'
+            },
+            'description': {
+                'help_text': 'Описание категории (необязательно)'
+            },
+        }
 

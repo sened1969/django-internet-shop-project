@@ -74,12 +74,47 @@ class Store(models.Model):
         return f'{self.name} ({self.city})'
 
 
+class Category(models.Model):
+    """
+    Модель категории книг.
+    
+    Представляет категорию, к которой относятся книги.
+    Одна категория может содержать несколько книг (связь один ко многим).
+    
+    Атрибуты:
+        name (CharField): Название категории
+        description (TextField): Описание категории
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='Название категории',
+        help_text='Введите название категории книг'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name='Описание категории',
+        help_text='Описание категории (необязательно)'
+    )
+    
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ['name']
+    
+    def __str__(self):
+        """Возвращает строковое представление категории."""
+        return self.name
+
+
 class Book(models.Model):
     """
     Модель книги.
     
     Представляет книгу с информацией об авторе, дате публикации и описании.
-    Книга связана с издательством (один ко многим) и магазинами (многие ко многим).
+    Книга связана с издательством (один ко многим), категорией (один ко многим) 
+    и магазинами (многие ко многим).
     
     Атрибуты:
         title (CharField): Название книги
@@ -87,6 +122,7 @@ class Book(models.Model):
         published_date (DateField): Дата публикации
         description (TextField): Описание книги
         publisher (ForeignKey): Издательство, опубликовавшее книгу
+        category (ForeignKey): Категория книги
     """
     title = models.CharField(
         max_length=200,
@@ -116,6 +152,16 @@ class Book(models.Model):
         related_name='books',
         verbose_name='Издательство',
         help_text='Издательство, опубликовавшее книгу'
+    )
+    
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.CASCADE,
+        related_name='books',
+        null=True,
+        blank=True,
+        verbose_name='Категория',
+        help_text='Категория книги'
     )
     
     stores = models.ManyToManyField(

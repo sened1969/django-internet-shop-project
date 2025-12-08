@@ -6,6 +6,13 @@
 {% block content %}
     <h1 class="page-title">Каталог товаров</h1>
     
+    <!-- Кнопка добавления товара (только для авторизованных пользователей) -->
+    {% if user.is_authenticated %}
+        <div class="add-product-section" style="margin-bottom: 20px;">
+            <a href="{% url 'shop:add_product' %}" class="btn btn-primary">➕ Добавить товар</a>
+        </div>
+    {% endif %}
+    
     <!-- Форма фильтрации и сортировки -->
     <div class="filters-section">
         <form id="filter-form" method="GET" class="filter-form">

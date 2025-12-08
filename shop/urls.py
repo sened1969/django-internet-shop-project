@@ -14,6 +14,9 @@ urlpatterns = [
     # Маршрут для списка всех товаров
     path('', views.product_list, name='product_list'),
     
+    # Маршрут для добавления нового товара
+    path('product/add/', views.add_product, name='add_product'),
+    
     # Маршрут для детальной информации о товаре
     # product_id - это ID товара в базе данных
     path('product/<int:product_id>/', views.product_detail, name='product_detail'),

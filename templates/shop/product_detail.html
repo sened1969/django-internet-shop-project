@@ -68,16 +68,23 @@
                         </p>
                     </div>
                     
-                    <!-- Кнопка добавления в корзину -->
-                    {% if product.stock > 0 %}
-                        <form method="post" action="{% url 'shop:add_to_cart' product.id %}" class="add-to-cart-form">
-                            {% csrf_token %}
-                            <input type="hidden" name="quantity" value="1">
-                            <button type="submit" class="btn btn-primary">Добавить в корзину</button>
-                        </form>
+                    <!-- Кнопка добавления в корзину (только для авторизованных пользователей) -->
+                    {% if user.is_authenticated %}
+                        {% if product.stock > 0 %}
+                            <form method="post" action="{% url 'shop:add_to_cart' product.id %}" class="add-to-cart-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" value="1">
+                                <button type="submit" class="btn btn-primary">Добавить в корзину</button>
+                            </form>
+                        {% else %}
+                            <div class="out-of-stock">
+                                <p>Товар временно отсутствует на складе</p>
+                            </div>
+                        {% endif %}
                     {% else %}
-                        <div class="out-of-stock">
-                            <p>Товар временно отсутствует на складе</p>
+                        <div class="auth-required">
+                            <p class="auth-message">Авторизуйтесь для добавления в корзину</p>
+                            <a href="{% url 'shop:login' %}" class="btn btn-primary">Войти</a>
                         </div>
                     {% endif %}
                 </div>

@@ -7,7 +7,7 @@ from django import forms
 from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm, PasswordResetForm, SetPasswordForm
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
-from .models import Message
+from .models import Message, Product
 
 User = get_user_model()
 
@@ -290,4 +290,71 @@ class ContactForm(forms.ModelForm):
             raise ValidationError('Сообщение не должно превышать 500 символов.')
         
         return message.strip()
+
+
+class ProductForm(forms.ModelForm):
+    """
+    Форма для добавления нового товара.
+    
+    Поля:
+        name: Название товара
+        description: Описание товара
+        price: Цена товара
+        image: Изображение товара
+        category: Категория товара
+        stock: Количество на складе
+    """
+    
+    class Meta:
+        model = Product
+        fields = ['name', 'description', 'price', 'image', 'category', 'stock']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Введите название товара',
+                'required': True
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 5,
+                'placeholder': 'Введите описание товара',
+                'required': True
+            }),
+            'price': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0.01',
+                'placeholder': '0.00',
+                'required': True
+            }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+            'category': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'stock': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': '0',
+                'required': True
+            }),
+        }
+        labels = {
+            'name': 'Название товара',
+            'description': 'Описание товара',
+            'price': 'Цена товара',
+            'image': 'Изображение товара',
+            'category': 'Категория товара',
+            'stock': 'Количество на складе',
+        }
+        help_texts = {
+            'name': 'Введите название товара',
+            'description': 'Введите подробное описание товара',
+            'price': 'Цена товара в рублях',
+            'image': 'Загрузите изображение товара (необязательно)',
+            'category': 'Выберите категорию товара (необязательно)',
+            'stock': 'Количество товара на складе',
+        }
 

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тема #26. Добавление товаров и ограничение доступа - Диаграммы</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #16a085;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #16a085;
+            padding-left: 10px;
+        }
+        .diagram-container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .description {
+            background: #d5f4e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .mermaid {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛍️ Тема #26. Добавление товаров и ограничение доступа - Диаграммы</h1>
+
+    <div class="description">
+        <p><strong>Назначение:</strong> Визуализация архитектуры добавления товаров через интерфейс, ограничения доступа к корзине и интеграции компонентов системы.</p>
+    </div>
+
+    <!-- Диаграмма 1: Архитектура добавления товаров -->
+    <div class="diagram-container">
+        <h2>1. Архитектура добавления товаров через интерфейс</h2>
+        <div class="mermaid">
+        graph TB
+            A["Пользователь<br/>Авторизован"] -->|"1. GET запрос"| B["URL: /product/add/"]
+            B -->|"2. Маршрут"| C["View: add_product"]
+            C -->|"3. Проверка"| D{"login_required<br/>Авторизован?"}
+            D -->|"Да"| E["Отображение формы<br/>ProductForm"]
+            D -->|"Нет"| F["Редирект на /login/"]
+            
+            E -->|"4. Заполнение формы"| G["Шаблон:<br/>add_product.html"]
+            G -->|"5. POST запрос"| C
+            C -->|"6. Валидация"| H{"Форма валидна?"}
+            H -->|"Нет"| E
+            H -->|"Да"| I["Сохранение в БД<br/>Product.objects.create"]
+            I -->|"7. Успех"| J["Редирект на<br/>/product/id/"]
+            J -->|"8. Сообщение"| K["Товар успешно добавлен"]
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style C fill:#2ecc71,stroke:#27ae60,color:#fff
+            style E fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style I fill:#e67e22,stroke:#d35400,color:#fff
+            style F fill:#e74c3c,stroke:#c0392b,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Поток данных при добавлении товара: пользователь заполняет форму, данные валидируются и сохраняются в базу данных.</p>
+    </div>
+
+    <!-- Диаграмма 2: Поток добавления товара -->
+    <div class="diagram-container">
+        <h2>2. Последовательность добавления товара</h2>
+        <div class="mermaid">
+        sequenceDiagram
+            participant User as Пользователь<br/>(Авторизован)
+            participant Template as Шаблон<br/>product_list.html
+            participant View as View<br/>add_product
+            participant Form as ProductForm
+            participant Model as Model<br/>Product
+            participant DB as База данных
+            
+            User->>Template: Нажатие кнопки<br/>"Добавить товар"
+            Template->>View: GET /product/add/
+            View->>View: Проверка @login_required
+            View->>Form: Создание пустой формы
+            Form-->>View: ProductForm()
+            View->>Template: Рендер add_product.html
+            Template-->>User: Отображение формы
+            
+            User->>Template: Заполнение и отправка формы
+            Template->>View: POST /product/add/<br/>с данными товара
+            View->>Form: ProductForm(request.POST, request.FILES)
+            Form->>Form: Валидация данных
+            alt Валидация успешна
+                Form-->>View: form.is_valid() = True
+                View->>Model: form.save()
+                Model->>DB: INSERT INTO shop_products
+                DB-->>Model: Товар создан
+                Model-->>View: product объект
+                View->>View: messages.success()
+                View-->>User: Редирект на /product/id/
+            else Валидация не прошла
+                Form-->>View: form.is_valid() = False
+                View->>Template: Рендер с ошибками
+                Template-->>User: Форма с ошибками валидации
+            end
+        </div>
+        <p><strong>Описание:</strong> Детальная последовательность взаимодействия компонентов при добавлении товара через форму.</p>
+    </div>
+
+    <!-- Диаграмма 3: Ограничение доступа к корзине -->
+    <div class="diagram-container">
+        <h2>3. Ограничение доступа к корзине</h2>
+        <div class="mermaid">
+        graph TB
+            A["Пользователь"] -->|"Запрос"| B{"Авторизован?<br/>user.is_authenticated"}
+            
+            B -->|"Да"| C["Шаблон:<br/>product_detail.html"]
+            C -->|"Показывает"| D["Кнопка<br/>Добавить в корзину"]
+            D -->|"POST запрос"| E["View: add_to_cart<br/>login_required"]
+            E -->|"Проверка"| F{"Товар на складе?<br/>stock > 0"}
+            F -->|"Да"| G["Создание/обновление<br/>CartItem"]
+            G -->|"Сохранение"| H["База данных<br/>Cart, CartItem"]
+            H -->|"Успех"| I["Сообщение:<br/>Товар добавлен в корзину"]
+            
+            B -->|"Нет"| J["Шаблон:<br/>product_detail.html"]
+            J -->|"Показывает"| K["Сообщение:<br/>Авторизуйтесь для<br/>добавления в корзину"]
+            K -->|"Кнопка"| L["Ссылка на /login/"]
+            
+            E -->|"Не авторизован"| M["Редирект на /login/<br/>?next=/cart/add/id/"]
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style B fill:#f39c12,stroke:#e67e22,color:#fff
+            style E fill:#2ecc71,stroke:#27ae60,color:#fff
+            style G fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style K fill:#e74c3c,stroke:#c0392b,color:#fff
+            style M fill:#e74c3c,stroke:#c0392b,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Логика ограничения доступа: авторизованные пользователи видят кнопку добавления в корзину, неавторизованные - сообщение с предложением войти.</p>
+    </div>
+
+    <!-- Диаграмма 4: Компоненты системы -->
+    <div class="diagram-container">
+        <h2>4. Компоненты системы добавления товаров</h2>
+        <div class="mermaid">
+        graph TB
+            subgraph Forms["Формы"]
+                A["ProductForm<br/>shop/forms.py"]
+            end
+            
+            subgraph Views["Представления"]
+                B["add_product()<br/>shop/views.py<br/>@login_required"]
+                C["add_to_cart()<br/>shop/views.py<br/>@login_required"]
+            end
+            
+            subgraph Templates["Шаблоны"]
+                D["add_product.html<br/>форма добавления"]
+                E["product_list.html<br/>кнопка Добавить товар"]
+                F["product_detail.html<br/>кнопка Добавить в корзину"]
+            end
+            
+            subgraph URLs["Маршруты"]
+                G["/product/add/<br/>shop/urls.py"]
+                H["/cart/add/id/<br/>shop/urls.py"]
+            end
+            
+            subgraph Models["Модели"]
+                I["Product<br/>shop/models.py"]
+                J["Cart<br/>shop/models.py"]
+                K["CartItem<br/>shop/models.py"]
+            end
+            
+            subgraph Auth["Авторизация"]
+                L["@login_required<br/>декоратор"]
+                M["user.is_authenticated<br/>проверка в шаблоне"]
+            end
+            
+            A --> B
+            B --> D
+            B --> I
+            E --> G
+            G --> B
+            F --> H
+            H --> C
+            C --> J
+            C --> K
+            L --> B
+            L --> C
+            M --> E
+            M --> F
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style B fill:#2ecc71,stroke:#27ae60,color:#fff
+            style C fill:#2ecc71,stroke:#27ae60,color:#fff
+            style D fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style E fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style F fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style I fill:#e67e22,stroke:#d35400,color:#fff
+            style L fill:#e74c3c,stroke:#c0392b,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Структура компонентов: формы, представления, шаблоны, маршруты и модели, связанные с добавлением товаров и ограничением доступа.</p>
+    </div>
+
+    <!-- Диаграмма 5: Интеграция компонентов -->
+    <div class="diagram-container">
+        <h2>5. Интеграция компонентов добавления товаров</h2>
+        <div class="mermaid">
+        graph LR
+            A["Пользователь"] -->|"1. Переход"| B["product_list.html"]
+            B -->|"2. Кнопка"| C{"user.is_authenticated"}
+            C -->|"Да"| D["/product/add/"]
+            C -->|"Нет"| E["Кнопка скрыта"]
+            
+            D -->|"3. GET"| F["add_product view"]
+            F -->|"4. Форма"| G["ProductForm"]
+            G -->|"5. Рендер"| H["add_product.html"]
+            H -->|"6. POST"| F
+            F -->|"7. Валидация"| I{"form.is_valid"}
+            I -->|"Да"| J["Product.save"]
+            I -->|"Нет"| H
+            J -->|"8. Редирект"| K["/product/id/"]
+            
+            L["Пользователь"] -->|"9. Просмотр"| M["product_detail.html"]
+            M -->|"10. Проверка"| N{"user.is_authenticated"}
+            N -->|"Да"| O["Кнопка Добавить в корзину"]
+            N -->|"Нет"| P["Сообщение Авторизуйтесь"]
+            O -->|"11. POST"| Q["/cart/add/id/"]
+            Q -->|"12. login_required"| R["add_to_cart view"]
+            R -->|"13. Сохранение"| S["CartItem.save"]
+            S -->|"14. Редирект"| M
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style F fill:#2ecc71,stroke:#27ae60,color:#fff
+            style R fill:#2ecc71,stroke:#27ae60,color:#fff
+            style J fill:#e67e22,stroke:#d35400,color:#fff
+            style S fill:#e67e22,stroke:#d35400,color:#fff
+            style C fill:#f39c12,stroke:#e67e22,color:#fff
+            style N fill:#f39c12,stroke:#e67e22,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Полный поток взаимодействия: от кнопки добавления товара до сохранения в корзину с проверками авторизации на каждом этапе.</p>
+    </div>
+
+    <!-- Диаграмма 6: Структура файлов проекта -->
+    <div class="diagram-container">
+        <h2>6. Структура файлов проекта</h2>
+        <div class="mermaid">
+        graph TB
+            A[shop/] --> B[forms.py<br/>ProductForm]
+            A --> C[views.py<br/>add_product<br/>add_to_cart]
+            A --> D[urls.py<br/>product/add/<br/>cart/add/id/]
+            A --> E[models.py<br/>Product<br/>Cart<br/>CartItem]
+            
+            F[templates/shop/] --> G[add_product.html<br/>форма добавления]
+            F --> H[product_list.html<br/>кнопка Добавить товар]
+            F --> I[product_detail.html<br/>кнопка Добавить в корзину]
+            
+            J[myshop/] --> K[settings.py<br/>AUTH_USER_MODEL]
+            
+            B --> C
+            C --> D
+            C --> E
+            C --> G
+            C --> H
+            C --> I
+            K --> C
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style F fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style B fill:#2ecc71,stroke:#27ae60,color:#fff
+            style C fill:#2ecc71,stroke:#27ae60,color:#fff
+            style E fill:#e67e22,stroke:#d35400,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Организация файлов проекта: формы, представления, маршруты, шаблоны и модели для функциональности добавления товаров.</p>
+    </div>
+
+    <!-- Диаграмма 7: Проверка авторизации -->
+    <div class="diagram-container">
+        <h2>7. Система проверки авторизации</h2>
+        <div class="mermaid">
+        graph TB
+            A["HTTP Request"] --> B{"Проверка авторизации"}
+            
+            B -->|"В View"| C["login_required<br/>декоратор"]
+            C -->|"Авторизован"| D["Выполнение view"]
+            C -->|"Не авторизован"| E["Редирект на /login/<br/>?next=текущий_URL"]
+            
+            B -->|"В шаблоне"| F["if user.is_authenticated<br/>шаблонный тег"]
+            F -->|"Да"| G["Отображение кнопки<br/>Добавить товар<br/>Добавить в корзину"]
+            F -->|"Нет"| H["Отображение сообщения<br/>Авторизуйтесь"]
+            
+            D --> I["Доступ к request.user"]
+            I --> J["Создание/обновление<br/>Cart для пользователя"]
+            
+            E --> K["Страница входа"]
+            K -->|"После входа"| L["Редирект на next URL"]
+            
+            style C fill:#2ecc71,stroke:#27ae60,color:#fff
+            style F fill:#9b59b6,stroke:#8e44ad,color:#fff
+            style D fill:#27ae60,stroke:#229954,color:#fff
+            style E fill:#e74c3c,stroke:#c0392b,color:#fff
+            style G fill:#3498db,stroke:#2980b9,color:#fff
+            style H fill:#e74c3c,stroke:#c0392b,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Два уровня проверки авторизации: на уровне представлений через декоратор и на уровне шаблонов через условные операторы.</p>
+    </div>
+
+    <!-- Диаграмма 8: Поток данных формы ProductForm -->
+    <div class="diagram-container">
+        <h2>8. Поля формы ProductForm и их валидация</h2>
+        <div class="mermaid">
+        graph TB
+            A[ProductForm] --> B[Поля формы]
+            
+            B --> C[name<br/>CharField<br/>Название товара]
+            B --> D[description<br/>TextField<br/>Описание товара]
+            B --> E[price<br/>DecimalField<br/>Цена товара]
+            B --> F[image<br/>ImageField<br/>Изображение товара]
+            B --> G[category<br/>ForeignKey<br/>Категория товара]
+            B --> H[stock<br/>IntegerField<br/>Количество на складе]
+            
+            C --> I[Валидация:<br/>Обязательное поле]
+            D --> I
+            E --> J[Валидация:<br/>MinValueValidator 0.01]
+            H --> K[Валидация:<br/>MinValueValidator 0]
+            F --> L[Валидация:<br/>Формат изображения]
+            G --> M[Валидация:<br/>Существование категории]
+            
+            I --> N{Все поля валидны?}
+            J --> N
+            K --> N
+            L --> N
+            M --> N
+            
+            N -->|Да| O[form.is_valid = True<br/>Сохранение в БД]
+            N -->|Нет| P[form.is_valid = False<br/>Отображение ошибок]
+            
+            style A fill:#3498db,stroke:#2980b9,color:#fff
+            style O fill:#2ecc71,stroke:#27ae60,color:#fff
+            style P fill:#e74c3c,stroke:#c0392b,color:#fff
+        </div>
+        <p><strong>Описание:</strong> Структура формы ProductForm: поля, их типы и валидация перед сохранением товара в базу данных.</p>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+</html>

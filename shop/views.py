@@ -25,7 +25,7 @@ from .models import Product, Message, Order, Cart, CartItem, Category
 from .forms import (
     CustomUserCreationForm, EmailAuthenticationForm, ContactForm,
     ProfileEditForm, CustomPasswordChangeForm, CustomPasswordResetForm,
-    CustomSetPasswordForm
+    CustomSetPasswordForm, ProductForm
 )
 
 User = get_user_model()
@@ -683,52 +683,51 @@ def logout_view(request):
     return redirect('shop:product_list')
 
 
+@login_required
+def add_product(request):
+    """
+    Добавление нового товара через интерфейс сайта.
+    
+    Только авторизованные пользователи могут добавлять товары.
+    """
+    if request.method == 'POST':
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            product = form.save()
+            messages.success(request, f'Товар "{product.name}" успешно добавлен!')
+            return redirect('shop:product_detail', product_id=product.id)
+    else:
+        form = ProductForm()
+    
+    context = {
+        'form': form,
+        'page_title': 'Добавить товар',
+    }
+    return render(request, 'shop/add_product.html', context)
+
+
+@login_required
 def add_to_cart(request, product_id):
     """
     Добавление товара в корзину.
     
-    Для авторизованных пользователей - добавляет в корзину пользователя.
-    Для анонимных пользователей - сохраняет в сессии.
+    Только авторизованные пользователи могут добавлять товары в корзину.
     """
     product = get_object_or_404(Product, id=product_id)
     quantity = int(request.POST.get('quantity', 1))
     
-    if request.user.is_authenticated:
-        # Для авторизованных пользователей
-        cart, created = Cart.objects.get_or_create(user=request.user)
-        cart_item, created = CartItem.objects.get_or_create(
-            cart=cart,
-            product=product,
-            defaults={'quantity': quantity}
-        )
-        if not created:
-            cart_item.quantity += quantity
-            cart_item.save()
-        messages.success(request, f'{product.name} добавлен в корзину.')
-    else:
-        # Для анонимных пользователей - сохраняем в сессии
-        if 'cart' not in request.session:
-            request.session['cart'] = []
-        
-        # Проверяем, есть ли уже такой товар в сессионной корзине
-        cart = request.session['cart']
-        found = False
-        for item in cart:
-            if item.get('product_id') == product_id:
-                item['quantity'] = item.get('quantity', 1) + quantity
-                found = True
-                break
-        
-        if not found:
-            cart.append({
-                'product_id': product_id,
-                'quantity': quantity
-            })
-        
-        request.session['cart'] = cart
-        request.session.modified = True
-        messages.success(request, f'{product.name} добавлен в корзину.')
+    # Для авторизованных пользователей
+    cart, created = Cart.objects.get_or_create(user=request.user)
+    cart_item, created = CartItem.objects.get_or_create(
+        cart=cart,
+        product=product,
+        defaults={'quantity': quantity}
+    )
+    if not created:
+        cart_item.quantity += quantity
+        cart_item.save()
     
+    messages.success(request, f'{product.name} добавлен в корзину.')
     return redirect('shop:product_detail', product_id=product_id)
 
 

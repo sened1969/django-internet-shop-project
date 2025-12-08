@@ -11,6 +11,14 @@ from .models import (
     Review, Cart, CartItem
 )
 
+# Импорт для кастомизации OAuth2 админки
+try:
+    from oauth2_provider.models import Application
+    from oauth2_provider.admin import ApplicationAdmin as BaseApplicationAdmin
+    OAUTH2_AVAILABLE = True
+except ImportError:
+    OAUTH2_AVAILABLE = False
+
 
 @admin.register(CustomUser)
 class CustomUserAdmin(BaseUserAdmin):
@@ -20,6 +28,8 @@ class CustomUserAdmin(BaseUserAdmin):
     list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     search_fields = ('email', 'phone_number')
     ordering = ('-date_joined',)
+    
+    # Важно: метод __str__ в CustomUser возвращает email, что используется виджетом для отображения
     
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
@@ -244,4 +254,70 @@ class CartItemAdmin(admin.ModelAdmin):
         """Вычисляет общую стоимость товара в корзине."""
         return f'{obj.product.price * obj.quantity:.2f} руб.'
     item_total.short_description = 'Стоимость'
+
+
+# Кастомизация админки OAuth2 Application для работы с CustomUser
+if OAUTH2_AVAILABLE:
+    # Отменяем автоматическую регистрацию и регистрируем заново с кастомным admin
+    try:
+        admin.site.unregister(Application)
+    except admin.sites.NotRegistered:
+        pass  # Модель еще не была зарегистрирована
+    
+    @admin.register(Application)
+    class CustomApplicationAdmin(BaseApplicationAdmin):
+        """
+        Кастомный admin для OAuth2 Application, который правильно работает с CustomUser.
+        
+        Исправляет проблему с выбором пользователя в форме создания OAuth2 приложения,
+        когда используется кастомная модель пользователя с email вместо username.
+        
+        Проблема: виджет выбора пользователя может показывать неправильное значение
+        (например, "admin" из поля role вместо email). Это решается правильной настройкой
+        queryset и использованием метода __str__ модели CustomUser (который возвращает email).
+        """
+        # Убеждаемся, что поле user НЕ использует raw_id_fields (RawIdWidget)
+        # Это важно для правильной работы с CustomUser
+        raw_id_fields = tuple(f for f in getattr(BaseApplicationAdmin, 'raw_id_fields', ()) if f != 'user')
+        
+        # Настройка отображения списка приложений
+        # list_display уже наследуется от BaseApplicationAdmin: ('pk', 'name', 'user', 'client_type', 'authorization_grant_type')
+        # Добавляем ссылки для редактирования (кликабельные поля)
+        list_display_links = ('pk', 'name')  # Можно кликнуть на PK или Name для редактирования
+        
+        def formfield_for_foreignkey(self, db_field, request, **kwargs):
+            """Переопределяем поле выбора пользователя для работы с CustomUser."""
+            if db_field.name == "user":
+                # Используем правильную модель пользователя из настроек
+                from django.contrib.auth import get_user_model
+                from django import forms
+                User = get_user_model()
+                
+                # Создаем queryset с правильной моделью пользователя
+                # Важно: используем все объекты CustomUser, отсортированные по email
+                queryset = User.objects.all().order_by('email')
+                kwargs["queryset"] = queryset
+                
+                # ВАЖНО: Явно указываем использование обычного Select виджета вместо RawIdWidget
+                # RawIdWidget требует ввода ID вручную, что может вызывать проблемы с валидацией
+                # Обычный Select виджет использует метод __str__ модели для отображения (email)
+                kwargs["widget"] = forms.Select(attrs={'class': 'form-control'})
+                
+            return super().formfield_for_foreignkey(db_field, request, **kwargs)
+        
+        def get_form(self, request, obj=None, **kwargs):
+            """Переопределяем форму для правильной работы с CustomUser."""
+            form = super().get_form(request, obj, **kwargs)
+            # Убеждаемся, что поле user использует правильный queryset
+            if 'user' in form.base_fields:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                # Устанавливаем правильный queryset с правильной моделью
+                # Важно: используем все объекты CustomUser, отсортированные по email
+                form.base_fields['user'].queryset = User.objects.all().order_by('email')
+                # Убеждаемся, что поле использует правильную модель для валидации
+                form.base_fields['user'].queryset.model = User
+                # Убеждаемся, что поле использует правильный to_field (по умолчанию pk)
+                # Это важно для правильной валидации выбранного значения при сохранении
+            return form
 

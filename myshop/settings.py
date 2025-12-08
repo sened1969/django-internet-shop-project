@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',  # JWT аутентификация
     'drf_spectacular',  # Swagger документация (drf-spectacular)
     'drf_spectacular_sidecar',  # Статические файлы для Swagger UI
+    'oauth2_provider',  # OAuth 2.0 сервер авторизации (Тема 25)
     'shop',  # Наше приложение интернет-магазина
     'books',  # Приложение для работы с книгами (Тема 20)
     'api_demo',  # Демо-приложение для демонстрации APIView классов (Тема 24)
@@ -63,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',  # OAuth 2.0 middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -223,6 +225,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # OAuth 2.0 аутентификация
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
@@ -245,11 +248,24 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': True,
 }
 
+# Настройки OAuth 2.0 Provider
+OAUTH2_PROVIDER = {
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,  # Время жизни Access Token (1 час)
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 86400,  # Время жизни Refresh Token (1 день)
+    'ALLOW_PUBLIC_CLIENTS': True,  # Разрешить клиентам без client_secret
+    'SCOPES': {
+        'read': 'Чтение данных',
+        'write': 'Запись данных',
+    },
+    'DEFAULT_SCOPES': ['read'],  # Scope по умолчанию
+}
+
 # Настройки drf-spectacular (Swagger документация)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Books API',
     'DESCRIPTION': 'REST API для управления книгами, издательствами, магазинами и отзывами. '
-                   'Документация автоматически генерируется на основе кода.',
+                   'Документация автоматически генерируется на основе кода. '
+                   'Поддерживает OAuth 2.0 авторизацию.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SWAGGER_UI_DIST': 'SIDECAR',  # Использовать встроенные файлы Swagger UI

@@ -32,6 +32,9 @@ urlpatterns = [
     path('api/demo/', include('api_demo.urls')),  # Подключаем демо-API (APIView классы)
     path('api/auth/', include('rest_framework.urls')),  # Сессионная аутентификация для браузера
     
+    # OAuth 2.0 маршруты (Тема 25)
+    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+    
     # Swagger документация (drf-spectacular)
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
